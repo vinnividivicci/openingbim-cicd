@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Mockup - BIM/IDS Validator</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles inspired by OpeningBIM.com */
+        :root {
+            --background: #121212;
+            --surface: #1E1E1E;
+            --primary: #00A9FF;
+            --primary-hover: #0090D9;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0A0;
+            --border-color: #2D2D2D;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--surface); }
+        ::-webkit-scrollbar-thumb { background: #4F4F4F; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6F6F6F; }
+
+        /* Dropzone style */
+        #dropzone.active { opacity: 1; pointer-events: all; }
+
+        /* Side panel transition */
+        #side-panel { transition: transform 0.3s ease-in-out; }
+        #side-panel.is-hidden { transform: translateX(-100%); }
+        
+        /* Spinner animation */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; }
+
+        /* Custom button styles */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--text-primary);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+        .btn-disabled {
+            background-color: #333333;
+            color: #777777;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="overflow-hidden h-screen">
+
+    <!-- Main Application Container -->
+    <div class="flex flex-col h-full">
+
+        <!-- Top Toolbar -->
+        <header class="bg-[var(--surface)] border-b border-[var(--border-color)] flex-shrink-0 z-20">
+            <div class="w-full mx-auto px-4">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-cube text-2xl text-[var(--primary)]"></i>
+                        <h1 class="text-xl font-bold text-[var(--text-primary)]">BIM/IDS Validator</h1>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="load-ifc-btn" class="btn btn-primary">
+                            <i class="fa-solid fa-file-import"></i>
+                            <span>Load IFC</span>
+                        </button>
+                        <button id="load-ids-btn" class="btn btn-disabled" disabled>
+                            <i class="fa-solid fa-file-shield"></i>
+                            <span>Load IDS</span>
+                        </button>
+                        <button id="run-validation-btn" class="btn btn-disabled" disabled>
+                             <i class="fa-solid fa-play"></i>
+                            <span>Run Validation</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-grow flex overflow-hidden relative">
+            
+            <!-- Side Panel (Initially Hidden) -->
+            <aside id="side-panel" class="bg-[var(--surface)] w-96 h-full flex-shrink-0 border-r border-[var(--border-color)] absolute top-0 left-0 z-10 is-hidden">
+                <div class="flex flex-col h-full">
+                    <div class="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
+                        <h2 class="text-lg font-bold">Validation Results</h2>
+                        <button id="close-panel-btn" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="results-container" class="flex-grow p-4 overflow-y-auto">
+                        <div class="text-center text-[var(--text-secondary)]">
+                            <p>Run validation to see results.</p>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t border-[var(--border-color)]">
+                        <button class="w-full btn bg-green-600 hover:bg-green-500 text-white">
+                            <i class="fa-solid fa-file-export"></i>
+                            <span>Export BCF</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 3D Viewer Area -->
+            <div id="viewer-area" class="flex-grow h-full relative bg-[var(--background)]">
+                <div id="viewer-placeholder" class="w-full h-full flex items-center justify-center text-[var(--text-secondary)]">
+                    <div class="text-center">
+                        <i class="fa-solid fa-cubes text-6xl mb-4"></i>
+                        <p class="text-2xl">3D Viewer</p>
+                        <p>Load an IFC file to begin.</p>
+                    </div>
+                </div>
+
+                <!-- Drag and Drop Overlay -->
+                <div id="dropzone" class="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                    <div class="text-center p-10 border-2 border-dashed border-[var(--primary)] rounded-xl">
+                        <i class="fa-solid fa-upload text-4xl text-[var(--primary)] mb-4"></i>
+                        <p class="text-2xl font-semibold">Drop IFC or IDS file here</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- UI Element References ---
+        const loadIfcBtn = document.getElementById('load-ifc-btn');
+        const loadIdsBtn = document.getElementById('load-ids-btn');
+        const runValidationBtn = document.getElementById('run-validation-btn');
+        const sidePanel = document.getElementById('side-panel');
+        const closePanelBtn = document.getElementById('close-panel-btn');
+        const viewerArea = document.getElementById('viewer-area');
+        const dropzone = document.getElementById('dropzone');
+        const viewerPlaceholder = document.getElementById('viewer-placeholder');
+        const resultsContainer = document.getElementById('results-container');
+
+        // --- State Management Simulation ---
+        function updateButtonState(button, enabled) {
+            button.disabled = !enabled;
+            if (enabled) {
+                button.classList.remove('btn-disabled');
+                button.classList.add('btn-primary');
+            } else {
+                button.classList.add('btn-disabled');
+                button.classList.remove('btn-primary');
+            }
+        }
+        
+        loadIfcBtn.addEventListener('click', () => {
+            viewerPlaceholder.innerHTML = `
+                <div class="text-center text-green-400">
+                    <i class="fa-solid fa-check-circle text-6xl mb-4"></i>
+                    <p class="text-2xl">IFC Model Loaded</p>
+                    <p class="text-[var(--text-secondary)]">Ready to load IDS file.</p>
+                </div>`;
+            updateButtonState(loadIdsBtn, true);
+        });
+
+        loadIdsBtn.addEventListener('click', () => {
+            if (loadIdsBtn.disabled) return;
+            viewerPlaceholder.innerHTML += `<p class="mt-4 text-sm text-yellow-400">IDS Schema Loaded.</p>`;
+            updateButtonState(runValidationBtn, true);
+        });
+
+        runValidationBtn.addEventListener('click', () => {
+            if (runValidationBtn.disabled) return;
+            sidePanel.classList.remove('is-hidden');
+            
+            resultsContainer.innerHTML = `
+                <div class="flex justify-center items-center h-full text-[var(--text-secondary)]">
+                    <div class="text-center">
+                        <i class="fa-solid fa-spinner spinner text-3xl"></i>
+                        <p class="mt-2">Running validation...</p>
+                    </div>
+                </div>`;
+            
+            setTimeout(populateMockResults, 1500);
+        });
+
+        closePanelBtn.addEventListener('click', () => {
+            sidePanel.classList.add('is-hidden');
+        });
+
+        function populateMockResults() {
+            resultsContainer.innerHTML = `
+                <div class="space-y-3">
+                    <details class="bg-[#2D2D2D]/50 rounded-lg">
+                        <summary class="p-3 cursor-pointer font-medium flex justify-between items-center">
+                            <span>Wall Fire Rating</span>
+                            <span class="text-xs font-bold text-green-400 bg-green-900/50 px-2 py-1 rounded-full">PASSED</span>
+                        </summary>
+                    </details>
+                    
+                    <details class="bg-[#2D2D2D]/50 rounded-lg" open>
+                        <summary class="p-3 cursor-pointer font-medium flex justify-between items-center">
+                            <span>Door Dimensions</span>
+                            <span class="text-xs font-bold text-red-400 bg-red-900/50 px-2 py-1 rounded-full">3 FAILED</span>
+                        </summary>
+                        <div class="p-3 border-t border-[var(--border-color)] space-y-2 text-[var(--text-secondary)]">
+                            <div class="p-2 rounded-md hover:bg-[var(--primary-hover)]/20 hover:text-[var(--text-primary)] cursor-pointer transition">Door - 102345 (Height mismatch)</div>
+                            <div class="p-2 rounded-md hover:bg-[var(--primary-hover)]/20 hover:text-[var(--text-primary)] cursor-pointer transition">Door - 102348 (Width mismatch)</div>
+                            <div class="p-2 rounded-md bg-[var(--primary)]/20 text-[var(--text-primary)] cursor-pointer transition">Door - 102350 (Missing property: Width)</div>
+                        </div>
+                    </details>
+                    
+                    <details class="bg-[#2D2D2D]/50 rounded-lg">
+                        <summary class="p-3 cursor-pointer font-medium flex justify-between items-center">
+                            <span>Column Material</span>
+                            <span class="text-xs font-bold text-red-400 bg-red-900/50 px-2 py-1 rounded-full">1 FAILED</span>
+                        </summary>
+                        <div class="p-3 border-t border-[var(--border-color)] space-y-2 text-[var(--text-secondary)]">
+                            <div class="p-2 rounded-md hover:bg-[var(--primary-hover)]/20 hover:text-[var(--text-primary)] cursor-pointer transition">StructuralColumn - 210987</div>
+                        </div>
+                    </details>
+                </div>
+            `;
+        }
+
+        // --- Drag and Drop Simulation ---
+        viewerArea.addEventListener('dragenter', (e) => { e.preventDefault(); dropzone.classList.add('active'); });
+        viewerArea.addEventListener('dragleave', (e) => { if (!viewerArea.contains(e.relatedTarget)) { dropzone.classList.remove('active'); } });
+        viewerArea.addEventListener('dragover', (e) => { e.preventDefault(); });
+        viewerArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('active');
+            loadIfcBtn.click();
+            viewerPlaceholder.innerHTML += `<p class="mt-4 text-sm text-green-400">File dropped successfully!</p>`;
+        });
+    </script>
+</body>
+</html>
