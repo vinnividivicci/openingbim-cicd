@@ -1,99 +1,107 @@
 import * as BUI from "@thatopen/ui";
 import { appIcons, globalIDSIntegration } from "../../globals";
+import { ValidationDisplayResult, RequirementDisplayResult, IDSUIStateManager } from "../../bim-components";
 
-// Define interfaces for validation results display
-export interface ValidationDisplayResult {
-  specificationId: string;
-  specificationName: string;
-  modelName: string;
-  requirements: RequirementDisplayResult[];
-  summary: {
-    totalRequirements: number;
-    passedRequirements: number;
-    failedRequirements: number;
-  };
-}
+// Create global UI state manager instance
+let globalUIStateManager: IDSUIStateManager | undefined;
 
-export interface RequirementDisplayResult {
-  id: string;
-  name: string;
-  status: 'passed' | 'failed';
-  failedElements: {
-    elementId: string;
-    elementType: string;
-    reason: string;
-  }[];
-  passedCount: number;
-  failedCount: number;
+export function getGlobalUIStateManager(): IDSUIStateManager {
+  if (!globalUIStateManager) {
+    globalUIStateManager = new IDSUIStateManager();
+  }
+  return globalUIStateManager;
 }
 
 export interface ValidationResultsPanelState {
-  results: ValidationDisplayResult[];
-  selectedSpecification?: string;
-  selectedRequirement?: string;
-  expandedSpecs: Set<string>;
-  expandedRequirements: Set<string>;
+  stateManager: IDSUIStateManager;
+  lastUpdateTime: number;
 }
 
 export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationResultsPanelState> = (
   state,
   update,
 ) => {
-  // Initialize state if needed
-  if (!state.results) {
-    state.results = [];
-  }
-  if (!state.expandedSpecs) {
-    state.expandedSpecs = new Set();
-  }
-  if (!state.expandedRequirements) {
-    state.expandedRequirements = new Set();
+  // Initialize state manager if needed
+  if (!state.stateManager) {
+    state.stateManager = getGlobalUIStateManager();
+    state.lastUpdateTime = Date.now();
   }
 
-  // Get current validation results from global integration
-  const refreshResults = () => {
+  // Subscribe to state manager updates
+  const stateManager = state.stateManager;
+
+  // Set up reactive updates from state manager
+  const setupReactiveUpdates = () => {
+    // Subscribe to state changes and trigger UI updates
+    const unsubscribe = stateManager.subscribe((_newState) => {
+      // Update component state to trigger re-render
+      update({
+        stateManager: stateManager,
+        lastUpdateTime: Date.now()
+      });
+    });
+
+    // Store unsubscribe function for cleanup (if needed)
+    (state as any)._unsubscribe = unsubscribe;
+  };
+
+  // Set up reactive updates if not already done
+  if (!(state as any)._unsubscribe) {
+    setupReactiveUpdates();
+  }
+
+  // Sync with global IDS integration results
+  const syncWithGlobalIntegration = () => {
     if (globalIDSIntegration) {
       const currentResults = globalIDSIntegration.getValidationResults();
-      if (JSON.stringify(currentResults) !== JSON.stringify(state.results)) {
-        state.results = currentResults;
-        update({ results: currentResults });
+      stateManager.updateResults(currentResults);
+    }
+  };
+
+  // Sync results on render
+  syncWithGlobalIntegration();
+
+  // Get current state from state manager
+  const currentState = stateManager.state;
+
+  const onToggleSpecification = (specId: string) => {
+    stateManager.toggleSpecificationExpansion(specId);
+  };
+
+  const onToggleRequirement = (specId: string, reqId: string) => {
+    stateManager.toggleRequirementExpansion(specId, reqId);
+  };
+
+  const onElementClick = (elementId: string, specId: string, reqId: string) => {
+    // Update selection state through state manager
+    stateManager.selectRequirement(specId, reqId);
+
+    // This will be implemented in later tasks for 3D viewer integration
+    console.log(`Element clicked: ${elementId} in spec ${specId}, requirement ${reqId}`);
+
+    // Future: Highlight element in 3D viewer and focus camera
+    if (globalIDSIntegration) {
+      try {
+        globalIDSIntegration.highlightFailures(specId, reqId);
+      } catch (error) {
+        console.warn("Failed to highlight element:", error);
       }
     }
   };
 
-  // Refresh results on render
-  refreshResults();
-
-  const onToggleSpecification = (specId: string) => {
-    if (state.expandedSpecs.has(specId)) {
-      state.expandedSpecs.delete(specId);
-    } else {
-      state.expandedSpecs.add(specId);
-    }
-    update({ expandedSpecs: new Set(state.expandedSpecs) });
-  };
-
-  const onToggleRequirement = (reqId: string) => {
-    if (state.expandedRequirements.has(reqId)) {
-      state.expandedRequirements.delete(reqId);
-    } else {
-      state.expandedRequirements.add(reqId);
-    }
-    update({ expandedRequirements: new Set(state.expandedRequirements) });
-  };
-
-  const onElementClick = (elementId: string, specId: string, reqId: string) => {
-    // This will be implemented in later tasks for 3D viewer integration
-    console.log(`Element clicked: ${elementId} in spec ${specId}, requirement ${reqId}`);
-
-    // For now, just update selection state
-    state.selectedSpecification = specId;
-    state.selectedRequirement = reqId;
-    update({ selectedSpecification: specId, selectedRequirement: reqId });
-  };
-
   const onExportResults = async () => {
-    if (!globalIDSIntegration || state.results.length === 0) {
+    const summary = stateManager.getValidationSummary();
+
+    if (!globalIDSIntegration || !summary.hasResults) {
+      const notification = BUI.Component.create(() => {
+        return BUI.html`
+          <bim-notification type="warning" title="No Results">
+            No validation results available for export.
+          </bim-notification>
+        `;
+      });
+      document.body.appendChild(notification);
+      setTimeout(() => document.body.removeChild(notification), 3000);
       return;
     }
 
@@ -163,8 +171,7 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
 
   // Create requirement section
   const createRequirementSection = (requirement: RequirementDisplayResult, specId: string) => {
-    const reqKey = `${specId}-${requirement.id}`;
-    const isExpanded = state.expandedRequirements.has(reqKey);
+    const isExpanded = stateManager.isRequirementExpanded(specId, requirement.id);
     const hasFailed = requirement.status === 'failed' && requirement.failedElements.length > 0;
 
     return BUI.html`
@@ -183,7 +190,7 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
             justify-content: space-between;
             border-bottom: ${hasFailed && isExpanded ? '1px solid var(--bim-ui_bg-contrast-40)' : 'none'};
           "
-          @click=${() => onToggleRequirement(reqKey)}
+          @click=${() => onToggleRequirement(specId, requirement.id)}
         >
           <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
             <span style="
@@ -255,7 +262,7 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
 
   // Create specification section
   const createSpecificationSection = (result: ValidationDisplayResult) => {
-    const isExpanded = state.expandedSpecs.has(result.specificationId);
+    const isExpanded = stateManager.isSpecificationExpanded(result.specificationId);
     const hasFailures = result.summary.failedRequirements > 0;
 
     return BUI.html`
@@ -365,30 +372,73 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
     `;
   };
 
-  // Create main content
-  const hasResults = state.results && state.results.length > 0;
-  const totalSpecs = hasResults ? state.results.length : 0;
-  const totalRequirements = hasResults ? state.results.reduce((sum, spec) => sum + spec.summary.totalRequirements, 0) : 0;
-  const totalFailed = hasResults ? state.results.reduce((sum, spec) => sum + spec.summary.failedRequirements, 0) : 0;
+  // Get validation summary from state manager
+  const summary = stateManager.getValidationSummary();
+  const results = currentState.currentResults;
 
   return BUI.html`
     <bim-panel-section fixed icon=${appIcons.TASK} label="Validation Results">
-      ${hasResults ? BUI.html`
+      ${summary.hasResults ? BUI.html`
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
           <div style="font-size: 0.875rem; color: var(--bim-ui_bg-contrast-80);">
-            ${totalSpecs} specification(s) • ${totalRequirements} requirements
-            ${totalFailed > 0 ? ` • ${totalFailed} failed` : ' • All passed'}
+            ${summary.totalSpecs} specification(s) • ${summary.totalRequirements} requirements
+            ${summary.totalFailed > 0 ? ` • ${summary.totalFailed} failed` : ' • All passed'}
+            ${summary.lastValidationTime ? ` • ${summary.lastValidationTime.toLocaleTimeString()}` : ''}
           </div>
           <bim-button 
             size="xs" 
             label="Export" 
             icon=${appIcons.EXPORT}
             @click=${onExportResults}
+            ?disabled=${summary.isValidating}
           ></bim-button>
         </div>
         
+        ${summary.isValidating ? BUI.html`
+          <div style="
+            padding: 1rem;
+            text-align: center;
+            color: var(--bim-ui_bg-contrast-80);
+            background: var(--bim-ui_bg-contrast-10);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+          ">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+              <div style="
+                width: 16px; 
+                height: 16px; 
+                border: 2px solid var(--bim-ui_bg-contrast-80); 
+                border-top: 2px solid transparent; 
+                border-radius: 50%; 
+                animation: spin 1s linear infinite;
+              "></div>
+              Validation in progress...
+            </div>
+          </div>
+          <style>
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        ` : BUI.html``}
+        
+        ${summary.validationError ? BUI.html`
+          <div style="
+            padding: 1rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            color: #ef4444;
+          ">
+            <div style="font-weight: 500; margin-bottom: 0.25rem;">Validation Error</div>
+            <div style="font-size: 0.875rem;">${summary.validationError}</div>
+          </div>
+        ` : BUI.html``}
+        
         <div style="max-height: 600px; overflow-y: auto;">
-          ${state.results.map(result => createSpecificationSection(result))}
+          ${results.map(result => createSpecificationSection(result))}
         </div>
       ` : createPlaceholderContent()}
     </bim-panel-section>

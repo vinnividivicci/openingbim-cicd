@@ -57,7 +57,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       },
       validationResults: {
         template: TEMPLATES.validationResultsPanelTemplate,
-        initialState: { results: [], expandedSpecs: new Set(), expandedRequirements: new Set() },
+        initialState: { stateManager: undefined as any, lastUpdateTime: 0 },
       },
       viewer: state.viewportTemplate,
     };

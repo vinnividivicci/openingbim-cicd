@@ -2,6 +2,7 @@ import * as BUI from "@thatopen/ui";
 import * as CUI from "@thatopen/ui-obc";
 import * as OBC from "@thatopen/components";
 import { appIcons, globalIDSIntegration } from "../../globals";
+import { getGlobalUIStateManager } from "./validation-results";
 
 export interface ModelsPanelState {
   components: OBC.Components;
@@ -162,6 +163,8 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
   };
 
   const onRunValidation = async () => {
+    const stateManager = getGlobalUIStateManager();
+
     if (!globalIDSIntegration) {
       console.warn("IDS functionality not available");
       const notification = BUI.Component.create(() => {
@@ -206,7 +209,8 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
       return;
     }
 
-    // Set loading state
+    // Set loading state through state manager
+    stateManager.setValidationState(true);
     state.isValidating = true;
     state.validationError = undefined;
     update({ isValidating: true, validationError: undefined });
@@ -228,17 +232,18 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
       // Remove progress notification
       document.body.removeChild(progressNotification);
 
-      // Get results and show success notification
+      // Get results and update state manager
       const results = globalIDSIntegration.getValidationResults();
-      const totalSpecs = results.length;
-      const totalRequirements = results.reduce((sum, spec) => sum + spec.summary.totalRequirements, 0);
-      const failedRequirements = results.reduce((sum, spec) => sum + spec.summary.failedRequirements, 0);
+      stateManager.updateResults(results);
+
+      // Get summary for notification
+      const summary = stateManager.getValidationSummary();
 
       const successNotification = BUI.Component.create(() => {
         return BUI.html`
           <bim-notification type="success" title="Validation Complete">
-            Validated ${totalRequirements} requirements across ${totalSpecs} specification(s). 
-            ${failedRequirements > 0 ? `${failedRequirements} requirement(s) failed.` : 'All requirements passed!'}
+            Validated ${summary.totalRequirements} requirements across ${summary.totalSpecs} specification(s). 
+            ${summary.totalFailed > 0 ? `${summary.totalFailed} requirement(s) failed.` : 'All requirements passed!'}
           </bim-notification>
         `;
       });
@@ -250,15 +255,17 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
     } catch (error) {
       console.error("Validation failed:", error);
 
-      // Store error for display
-      state.validationError = error instanceof Error ? error.message : "Unknown validation error occurred";
+      // Store error for display and update state manager
+      const errorMessage = error instanceof Error ? error.message : "Unknown validation error occurred";
+      stateManager.setValidationState(false, errorMessage);
+      state.validationError = errorMessage;
       update({ validationError: state.validationError });
 
       // Show error notification
       const errorNotification = BUI.Component.create(() => {
         return BUI.html`
           <bim-notification type="error" title="Validation Failed">
-            ${state.validationError}
+            ${errorMessage}
           </bim-notification>
         `;
       });
@@ -267,6 +274,7 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
 
     } finally {
       // Clear loading state
+      stateManager.setValidationState(false);
       state.isValidating = false;
       update({ isValidating: false });
     }
@@ -316,9 +324,22 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
         
         ${state.isValidating ? BUI.html`
           <div style="font-size: 0.75rem; color: var(--bim-ui_bg-contrast-80); display: flex; align-items: center; gap: 0.25rem;">
-            <div style="width: 12px; height: 12px; border: 2px solid var(--bim-ui_bg-contrast-80); border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div style="
+              width: 12px; 
+              height: 12px; 
+              border: 2px solid var(--bim-ui_bg-contrast-80); 
+              border-top: 2px solid transparent; 
+              border-radius: 50%; 
+              animation: spin 1s linear infinite;
+            "></div>
             Validating models...
           </div>
+          <style>
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
         ` : BUI.html``}
         
         ${!currentCanRunValidation && !state.isValidating ? BUI.html`
