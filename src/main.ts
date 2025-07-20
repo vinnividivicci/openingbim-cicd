@@ -3,8 +3,9 @@ import * as OBC from "@thatopen/components";
 import * as OBF from "@thatopen/components-front";
 import * as BUI from "@thatopen/ui";
 import * as TEMPLATES from "./ui-templates";
-import { appIcons, CONTENT_GRID_ID } from "./globals";
+import { appIcons, CONTENT_GRID_ID, setGlobalIDSIntegration } from "./globals";
 import { viewportSettingsTemplate } from "./ui-templates/buttons/viewport-settings";
+import { IDSIntegration } from "./bim-components";
 
 BUI.Manager.init();
 
@@ -119,6 +120,19 @@ highlighter.setup({
     transparent: false,
   },
 });
+
+// IDS Integration Setup
+let idsIntegration: IDSIntegration | undefined;
+try {
+  idsIntegration = new IDSIntegration(components);
+  await idsIntegration.setup(highlighter);
+  setGlobalIDSIntegration(idsIntegration);
+  console.log("IDS validation functionality initialized successfully");
+} catch (error) {
+  console.warn("IDS validation functionality not available:", error);
+  setGlobalIDSIntegration(undefined);
+  // Continue without IDS functionality - the app should still work for basic IFC viewing
+}
 
 // Clipper Setup
 const clipper = components.get(OBC.Clipper);

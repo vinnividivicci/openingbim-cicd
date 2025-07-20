@@ -3,6 +3,13 @@ export const CONTENT_GRID_GAP = "1rem";
 export const SMALL_COLUMN_WIDTH = "22rem";
 export const MEDIUM_COLUMN_WIDTH = "25rem";
 
+// Global component references
+export let globalIDSIntegration: import("./bim-components").IDSIntegration | undefined;
+
+export function setGlobalIDSIntegration(integration: import("./bim-components").IDSIntegration | undefined) {
+  globalIDSIntegration = integration;
+}
+
 export const appIcons = {
   ADD: "mdi:plus",
   SELECT: "solar:cursor-bold",
