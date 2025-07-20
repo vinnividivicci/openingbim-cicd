@@ -21,7 +21,9 @@ type ElementData = {
 
 type Viewpoints = { name: "viewpoints"; state: TEMPLATES.ViewpointsPanelState };
 
-export type ContentGridElements = [Viewer, Models, ElementData, Viewpoints];
+type ValidationResults = { name: "validationResults"; state: TEMPLATES.ValidationResultsPanelState };
+
+export type ContentGridElements = [Viewer, Models, ElementData, Viewpoints, ValidationResults];
 
 export type ContentGridLayouts = ["Viewer"];
 
@@ -53,6 +55,10 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
         template: TEMPLATES.viewpointsPanelTemplate,
         initialState: { components },
       },
+      validationResults: {
+        template: TEMPLATES.validationResultsPanelTemplate,
+        initialState: { results: [], expandedSpecs: new Set(), expandedRequirements: new Set() },
+      },
       viewer: state.viewportTemplate,
     };
 
@@ -60,7 +66,7 @@ export const contentGridTemplate: BUI.StatefullComponent<ContentGridState> = (
       Viewer: {
         template: `
           "models viewer elementData" 1fr
-          "viewpoints viewer elementData" 1fr
+          "viewpoints viewer validationResults" 1fr
           /${SMALL_COLUMN_WIDTH} 1fr ${SMALL_COLUMN_WIDTH}
         `,
       },
