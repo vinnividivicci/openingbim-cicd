@@ -92,7 +92,7 @@ bim-panel {
   border-radius: 0.25rem;
 }
 
-bim-grid:not([floating]) > bim-panel {
+bim-grid:not([floating])>bim-panel {
   background-color: var(--bim-ui_bg-contrast-10);
 }
 
@@ -101,16 +101,16 @@ bim-panel-section {
   overflow: auto;
 }
 
-bim-panel-section > bim-table {
+bim-panel-section>bim-table {
   flex: 1;
 }
 
-:not(bim-panel) > bim-panel-section {
+:not(bim-panel)>bim-panel-section {
   outline: 1px solid var(--bim-ui_bg-contrast-40);
   border-radius: 0.25rem;
 }
 
-bim-grid[floating] > bim-toolbar {
+bim-grid[floating]>bim-toolbar {
   border: none;
   justify-self: center;
   outline: 1px solid var(--bim-ui_bg-contrast-40);
@@ -143,24 +143,22 @@ bim-context-menu bim-button:hover {
 }
 
 .context-panel {
-  padding: 0; 
+  padding: 0;
   max-height: none;
 }
 
 .context-panel bim-dropdown {
-  --bim-input--bgc: var(
-    --bim-dropdown--bgc,
-    var(--bim-ui_bg-contrast-20)
-  )
+  --bim-input--bgc: var(--bim-dropdown--bgc,
+      var(--bim-ui_bg-contrast-20))
 }
 
 .dashboard-card {
-  padding: 1rem; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 1rem; 
-  box-shadow: 0px 2px 8px var(--bim-ui_bg-contrast-10); 
-  border-radius: 0.25rem; 
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0px 2px 8px var(--bim-ui_bg-contrast-10);
+  border-radius: 0.25rem;
   outline: 1px solid var(--bim-ui_bg-contrast-40);
   background-color: var(--bim-ui_bg-contrast-10);
   overflow: auto;
@@ -171,7 +169,7 @@ bim-grid[floating] .dashboard-card {
   height: fit-content;
 }
 
-.dashboard-card > div:first-child {
+.dashboard-card>div:first-child {
   overflow: hidden;
 }
 
@@ -194,4 +192,15 @@ bim-grid[floating] .dashboard-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* Validation loading spinner animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
