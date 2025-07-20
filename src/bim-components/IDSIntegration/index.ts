@@ -616,6 +616,13 @@ export class IDSIntegration extends OBC.Component {
   }
 
   /**
+   * Convert a single element ID to ModelIdMap format for camera focusing
+   */
+  async convertElementIdToModelIdMap(elementId: string): Promise<OBC.ModelIdMap> {
+    return this.convertElementIdsToModelIdMap([elementId]);
+  }
+
+  /**
    * Transform built-in validation results to UI-friendly format
    */
   private transformValidationResults(results: any): ValidationDisplayResult[] {

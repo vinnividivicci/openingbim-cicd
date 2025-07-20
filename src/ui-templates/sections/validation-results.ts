@@ -1,4 +1,6 @@
 import * as BUI from "@thatopen/ui";
+import * as OBC from "@thatopen/components";
+import * as OBF from "@thatopen/components-front";
 import { appIcons, globalIDSIntegration } from "../../globals";
 import { ValidationDisplayResult, RequirementDisplayResult, IDSUIStateManager } from "../../bim-components";
 
@@ -73,18 +75,103 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
   };
 
   const onElementClick = async (elementId: string, specId: string, reqId: string) => {
-    // Update selection state through state manager
-    stateManager.selectRequirement(specId, reqId);
+    try {
+      // Update selection state through state manager
+      stateManager.selectRequirement(specId, reqId);
 
-    console.log(`Element clicked: ${elementId} in spec ${specId}, requirement ${reqId}`);
+      console.log(`Element clicked: ${elementId} in spec ${specId}, requirement ${reqId}`);
 
-    // Highlight specific requirement failures in 3D viewer
-    if (globalIDSIntegration) {
-      try {
-        await globalIDSIntegration.highlightFailures(specId, reqId);
-      } catch (error) {
-        console.warn("Failed to highlight element:", error);
+      // Show loading feedback
+      const clickedElement = document.querySelector(`[data-element-id="${elementId}"]`) as HTMLElement;
+      if (clickedElement) {
+        clickedElement.style.opacity = '0.6';
+        clickedElement.style.pointerEvents = 'none';
       }
+
+      // Highlight specific requirement failures in 3D viewer
+      if (globalIDSIntegration) {
+        try {
+          await globalIDSIntegration.highlightFailures(specId, reqId);
+        } catch (error) {
+          console.warn("Failed to highlight element:", error);
+        }
+      }
+
+      // Focus on the clicked element using existing camera controls
+      await focusOnElement(elementId);
+
+      // Restore element state
+      if (clickedElement) {
+        clickedElement.style.opacity = '1';
+        clickedElement.style.pointerEvents = 'auto';
+      }
+
+    } catch (error) {
+      console.error("Failed to handle element click:", error);
+
+      // Show error notification
+      const notification = BUI.Component.create(() => {
+        return BUI.html`
+          <bim-notification type="error" title="Focus Failed">
+            Could not focus on the selected element.
+          </bim-notification>
+        `;
+      });
+      document.body.appendChild(notification);
+      setTimeout(() => document.body.removeChild(notification), 3000);
+    }
+  };
+
+  /**
+   * Focus the 3D camera on a specific element and integrate with existing selection system
+   * @param elementId - The ID of the element to focus on
+   */
+  const focusOnElement = async (elementId: string) => {
+    try {
+      if (!globalIDSIntegration) {
+        console.warn("IDS integration not available for element focusing");
+        return;
+      }
+
+      // Get the world and camera from globals
+      const components = globalIDSIntegration.components;
+      const worlds = components.get(OBC.Worlds);
+      const world = worlds.list.get("Main");
+
+      if (!world || !(world.camera instanceof OBC.SimpleCamera)) {
+        console.warn("Camera not available for element focusing");
+        return;
+      }
+
+      // Convert single element ID to ModelIdMap format for focusing
+      const modelIdMap = await globalIDSIntegration.convertElementIdToModelIdMap(elementId);
+
+      if (OBC.ModelIdMapUtils.isEmpty(modelIdMap)) {
+        console.warn(`Element ${elementId} not found for focusing`);
+        return;
+      }
+
+      // Integrate with existing selection system - select the element first
+      try {
+        const highlighter = components.get(OBF.Highlighter);
+
+        // Clear existing selection and select the clicked element
+        await highlighter.clear("select");
+        await highlighter.highlightByID("select", modelIdMap, false, false);
+
+        console.log(`Selected element: ${elementId}`);
+      } catch (selectionError) {
+        console.warn("Failed to select element:", selectionError);
+        // Continue with focusing even if selection fails
+      }
+
+      // Use the existing camera fitToItems method to focus on the element
+      await world.camera.fitToItems(modelIdMap);
+
+      console.log(`Focused camera on element: ${elementId}`);
+
+    } catch (error) {
+      console.error("Failed to focus on element:", error);
     }
   };
 
@@ -223,26 +310,38 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
             <div style="max-height: 200px; overflow-y: auto;">
               ${requirement.failedElements.map(element => BUI.html`
                 <div 
+                  data-element-id="${element.elementId}"
                   style="
                     padding: 0.5rem;
                     margin: 0.25rem 0;
                     background: var(--bim-ui_bg-contrast-20);
                     border-radius: 0.25rem;
                     cursor: pointer;
-                    transition: background-color 0.2s ease;
+                    transition: all 0.2s ease;
+                    border: 1px solid transparent;
                   "
+                  title="Click to focus on this element in the 3D viewer"
                   @click=${() => onElementClick(element.elementId, specId, requirement.id)}
                   @mouseenter=${(e: Event) => {
           const target = e.target as HTMLElement;
           target.style.backgroundColor = 'var(--bim-ui_bg-contrast-40)';
+          target.style.borderColor = 'var(--bim-ui_bg-contrast-60)';
+          target.style.transform = 'translateX(2px)';
         }}
                   @mouseleave=${(e: Event) => {
           const target = e.target as HTMLElement;
           target.style.backgroundColor = 'var(--bim-ui_bg-contrast-20)';
+          target.style.borderColor = 'transparent';
+          target.style.transform = 'translateX(0px)';
         }}
                 >
-                  <div style="font-size: 0.75rem; font-weight: 500; color: var(--bim-ui_bg-contrast-100);">
-                    ${element.elementType}
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="font-size: 0.75rem; font-weight: 500; color: var(--bim-ui_bg-contrast-100);">
+                      ${element.elementType}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--bim-ui_bg-contrast-60);" title="Click to focus">
+                      🎯
+                    </div>
                   </div>
                   <div style="font-size: 0.75rem; color: var(--bim-ui_bg-contrast-80); margin: 0.125rem 0;">
                     ID: ${element.elementId}
