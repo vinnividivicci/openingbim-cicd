@@ -72,17 +72,16 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
     stateManager.toggleRequirementExpansion(specId, reqId);
   };
 
-  const onElementClick = (elementId: string, specId: string, reqId: string) => {
+  const onElementClick = async (elementId: string, specId: string, reqId: string) => {
     // Update selection state through state manager
     stateManager.selectRequirement(specId, reqId);
 
-    // This will be implemented in later tasks for 3D viewer integration
     console.log(`Element clicked: ${elementId} in spec ${specId}, requirement ${reqId}`);
 
-    // Future: Highlight element in 3D viewer and focus camera
+    // Highlight specific requirement failures in 3D viewer
     if (globalIDSIntegration) {
       try {
-        globalIDSIntegration.highlightFailures(specId, reqId);
+        await globalIDSIntegration.highlightFailures(specId, reqId);
       } catch (error) {
         console.warn("Failed to highlight element:", error);
       }

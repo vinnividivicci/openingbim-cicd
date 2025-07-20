@@ -216,6 +216,9 @@ export const modelsPanelTemplate: BUI.StatefullComponent<ModelsPanelState> = (
     update({ isValidating: true, validationError: undefined });
 
     try {
+      // Clear previous validation highlights before running new validation
+      await globalIDSIntegration.clearHighlights();
+
       // Show progress notification
       const progressNotification = BUI.Component.create(() => {
         return BUI.html`
