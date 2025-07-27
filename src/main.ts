@@ -235,15 +235,13 @@ const viewportCardTemplate = () => BUI.html`
   </div>
 `;
 
-const [contentGrid] = BUI.Component.create<
-  BUI.Grid<TEMPLATES.ContentGridLayouts, TEMPLATES.ContentGridElements>,
-  TEMPLATES.ContentGridState
->(TEMPLATES.contentGridTemplate, {
+const { contentGrid, updateContentGrid } = TEMPLATES.createContentGrid(
   components,
-  id: CONTENT_GRID_ID,
-  viewportTemplate: viewportCardTemplate,
-});
+  viewportCardTemplate,
+);
 
+// updateContentGrid can be used to update the grid state dynamically
+// Example: updateContentGrid({ viewportTemplate: newViewportTemplate })
 const setInitialLayout = () => {
   if (window.location.hash) {
     const hash = window.location.hash.slice(
