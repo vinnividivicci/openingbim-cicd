@@ -107,6 +107,11 @@ world.camera.projection.onChanged.add(() => {
   for (const [_, model] of fragments.list) {
     model.useCamera(world.camera.three);
   }
+  fragments.core.update(true);
+});
+// Update fragments during camera movement for better LOD and culling
+world.camera.controls.addEventListener("update", () => {
+  fragments.core.update(true);
 });
 
 world.camera.controls.addEventListener("rest", () => {
