@@ -19,3 +19,15 @@
 - **Three.js**: Import as `* as THREE`, use 0x hex notation for colors
 - **No semicolons**: Prettier handles this automatically
 - **No unused vars**: TypeScript strict mode catches these
+
+## IDS Validation Status (July 2025)
+- **IDS validation is fully functional** - Successfully validates IFC models against IDS specifications
+- **API Methods**: Use `load()` to parse IDS files and `spec.test()` to run validation
+- **Known Issues**:
+  - Console.log statements need removal for production
+  - CSV export method exists but not exposed in UI (only JSON export available)
+- **Remaining Tasks**:
+  - Add CSV export option to validation results panel UI
+  - Remove debugging console.log statements
+  - Implement comprehensive error handling (Task 10)
+  - Write unit tests (Task 11) and integration tests (Task 12)
