@@ -57,5 +57,5 @@ Serves the production build locally for testing
 ## WebAssembly Integration
 
 - **web-ifc WASM**: Loaded from CDN (https://unpkg.com/web-ifc@0.0.69/)
-- **Fragment workers**: Loaded from node_modules for geometry processing
+- **Fragment workers**: Loaded from CDN for geometry processing
 - **Auto WASM setup**: Disabled for custom configuration

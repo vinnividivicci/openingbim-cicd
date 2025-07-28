@@ -85,7 +85,16 @@ aoPass.updateGtaoMaterial(aoParameters);
 aoPass.updatePdMaterial(pdParameters);
 
 const fragments = components.get(OBC.FragmentsManager);
-fragments.init("/node_modules/@thatopen/fragments/dist/Worker/worker.mjs");
+
+// Initialize FragmentsManager with worker from CDN (recommended approach)
+const githubUrl = "https://thatopen.github.io/engine_fragment/resources/worker.mjs";
+const fetchedUrl = await fetch(githubUrl);
+const workerBlob = await fetchedUrl.blob();
+const workerFile = new File([workerBlob], "worker.mjs", {
+  type: "text/javascript",
+});
+const workerUrl = URL.createObjectURL(workerFile);
+fragments.init(workerUrl);
 
 fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
   const isLod = "isLodMaterial" in material && material.isLodMaterial;
@@ -98,6 +107,11 @@ world.camera.projection.onChanged.add(() => {
   for (const [_, model] of fragments.list) {
     model.useCamera(world.camera.three);
   }
+  fragments.core.update(true);
+});
+// Update fragments during camera movement for better LOD and culling
+world.camera.controls.addEventListener("update", () => {
+  fragments.core.update(true);
 });
 
 world.camera.controls.addEventListener("rest", () => {
@@ -221,15 +235,13 @@ const viewportCardTemplate = () => BUI.html`
   </div>
 `;
 
-const [contentGrid] = BUI.Component.create<
-  BUI.Grid<TEMPLATES.ContentGridLayouts, TEMPLATES.ContentGridElements>,
-  TEMPLATES.ContentGridState
->(TEMPLATES.contentGridTemplate, {
+const { contentGrid, updateContentGrid } = TEMPLATES.createContentGrid(
   components,
-  id: CONTENT_GRID_ID,
-  viewportTemplate: viewportCardTemplate,
-});
+  viewportCardTemplate,
+);
 
+// updateContentGrid can be used to update the grid state dynamically
+// Example: updateContentGrid({ viewportTemplate: newViewportTemplate })
 const setInitialLayout = () => {
   if (window.location.hash) {
     const hash = window.location.hash.slice(
