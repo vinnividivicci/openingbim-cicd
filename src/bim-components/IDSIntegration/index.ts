@@ -93,42 +93,8 @@ export class IDSIntegration extends OBC.Component {
 
       const text = await file.text();
 
-      // Debug: Check what loading methods are available
-      console.log("IDS Loading - Available methods:");
-      const loadingMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(this._idsComponent))
-        .filter(name => typeof (this._idsComponent as any)[name] === 'function' && name.toLowerCase().includes('load'));
-      console.log("- Methods containing 'load':", loadingMethods);
-
       // Use the built-in IDS component to load the specification
-      let loadSuccess = false;
-
-      if ('load' in this._idsComponent && typeof this._idsComponent.load === 'function') {
-        console.log("Using 'load' method");
-        await this._idsComponent.load(text);
-        loadSuccess = true;
-      } else if ('loadFromString' in this._idsComponent && typeof (this._idsComponent as any).loadFromString === 'function') {
-        console.log("Using 'loadFromString' method");
-        await (this._idsComponent as any).loadFromString(text);
-        loadSuccess = true;
-      } else if ('import' in this._idsComponent && typeof (this._idsComponent as any).import === 'function') {
-        console.log("Using 'import' method");
-        await (this._idsComponent as any).import(text);
-        loadSuccess = true;
-      } else {
-        console.warn("No IDS loading method found. Available methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(this._idsComponent)));
-        throw new Error("IDS loading not supported by current component version");
-      }
-
-      if (loadSuccess) {
-        console.log("IDS file loaded successfully, checking what was loaded...");
-        // Debug what was actually loaded
-        if ('list' in this._idsComponent) {
-          console.log("- After loading, list content:", this._idsComponent.list);
-        }
-        if ('specifications' in this._idsComponent) {
-          console.log("- After loading, specifications content:", (this._idsComponent as any).specifications);
-        }
-      }
+      this._idsComponent.load(text);
 
       console.log(`IDS file "${file.name}" loaded successfully`);
     } catch (error) {
@@ -136,7 +102,6 @@ export class IDSIntegration extends OBC.Component {
       throw new Error(`Failed to load IDS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-
   /**
    * Run validation against loaded models
    */
@@ -148,26 +113,7 @@ export class IDSIntegration extends OBC.Component {
         throw new Error("No IFC models loaded. Please load an IFC file before running validation.");
       }
 
-      // Debug: Check what's actually loaded in the IDS component
-      console.log("IDS Component content inspection:");
-      console.log("- Has 'list' property:", 'list' in this._idsComponent);
-      console.log("- Has 'specifications' property:", 'specifications' in this._idsComponent);
-      console.log("- Has 'specs' property:", 'specs' in this._idsComponent);
-
-      if ('list' in this._idsComponent) {
-        console.log("- List content:", this._idsComponent.list);
-        console.log("- List keys:", this._idsComponent.list ? Object.keys(this._idsComponent.list) : 'null');
-      }
-
-      if ('specifications' in this._idsComponent) {
-        console.log("- Specifications content:", (this._idsComponent as any).specifications);
-      }
-
-      // Check all properties that might contain loaded specifications
-      const allProps = Object.getOwnPropertyNames(this._idsComponent);
-      console.log("- All component properties:", allProps);
-
-      // Check if IDS specifications are loaded using the correct data structure
+      // Check if IDS specifications are loaded
       const hasSpecs = 'list' in this._idsComponent &&
         this._idsComponent.list &&
         this._idsComponent.list.size > 0;
@@ -179,129 +125,56 @@ export class IDSIntegration extends OBC.Component {
         throw new Error("No IDS specifications loaded. Please load an IDS file before running validation.");
       }
 
-      // Debug: Inspect the IDS component to understand its API
-      console.log("IDS Component inspection:");
-      console.log("- Component type:", typeof this._idsComponent);
-      console.log("- Component constructor:", this._idsComponent.constructor.name);
-      console.log("- Available properties:", Object.getOwnPropertyNames(this._idsComponent));
-      console.log("- Available methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(this._idsComponent)));
+      // Run validation using the correct API: test individual specifications
+      console.log("Running IDS validation...");
+      const specResults: any[] = [];
 
-      // Check what's actually available on the component
-      const componentMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(this._idsComponent))
-        .filter(name => typeof (this._idsComponent as any)[name] === 'function');
-      console.log("- Available function methods:", componentMethods);
+      // Get model IDs for testing - convert to regex patterns as expected by the API
+      const modelNames = Array.from(fragmentsManager.list.keys());
+      const modelIds = modelNames.map(name => new RegExp(name, 'i')); // Case-insensitive regex
+      console.log("Testing against models:", modelNames, "as regex patterns:", modelIds);
 
-      // Also inspect individual specifications to see their methods
-      if (this._idsComponent.list && this._idsComponent.list.size > 0) {
-        const firstSpec = Array.from(this._idsComponent.list.values())[0];
-        console.log("First specification inspection:");
-        console.log("- Specification type:", typeof firstSpec);
-        console.log("- Specification constructor:", firstSpec.constructor.name);
-        console.log("- Specification methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(firstSpec))
-          .filter(name => typeof (firstSpec as any)[name] === 'function'));
-      }
+      for (const [specId, specification] of this._idsComponent.list) {
+        console.log(`Testing specification: ${specId}`);
 
-      // Run validation using the built-in component
-      let results: any = {};
+        try {
+          // Use the correct API: spec.test([modelIds])
+          const testResult = await (specification as any).test(modelIds);
+          console.log(`Specification ${specId} test result:`, testResult);
 
-      // Try different possible method names for validation
-      if ('validate' in this._idsComponent && typeof this._idsComponent.validate === 'function') {
-        console.log("Using component 'validate' method");
-        results = await this._idsComponent.validate();
-      } else if ('check' in this._idsComponent && typeof (this._idsComponent as any).check === 'function') {
-        console.log("Using component 'check' method");
-        results = await (this._idsComponent as any).check();
-      } else if ('run' in this._idsComponent && typeof (this._idsComponent as any).run === 'function') {
-        console.log("Using component 'run' method");
-        results = await (this._idsComponent as any).run();
-      } else if ('execute' in this._idsComponent && typeof (this._idsComponent as any).execute === 'function') {
-        console.log("Using component 'execute' method");
-        results = await (this._idsComponent as any).execute();
-      } else {
-        console.warn("No validation method found on IDS component. Available methods:", componentMethods);
+          // Convert result to ModelIdMap using the component's method
+          const modelIdMap = this._idsComponent.getModelIdMap(testResult);
+          console.log(`Specification ${specId} ModelIdMap:`, modelIdMap);
 
-        // Use the correct API: test individual specifications
-        if (this._idsComponent.list && this._idsComponent.list.size > 0) {
-          console.log("Running IDS validation using the correct API...");
-          const specResults: any[] = [];
+          // Detailed inspection of pass/fail results
+          console.log(`Specification ${specId} detailed results:`);
+          console.log(`- Pass elements:`, modelIdMap.pass);
+          console.log(`- Fail elements:`, modelIdMap.fail);
 
-          // Get model IDs for testing - convert to regex patterns as expected by the API
-          const fragmentsManager = this.components.get(OBC.FragmentsManager);
-          const modelNames = Array.from(fragmentsManager.list.keys());
-          // Convert model names to regex patterns (as shown in documentation)
-          const modelIds = modelNames.map(name => new RegExp(name, 'i')); // Case-insensitive regex
-          console.log("Testing against models:", modelNames, "as regex patterns:", modelIds);
+          // Count elements in each category
+          const passCount = this.countElementsInModelIdMap(modelIdMap.pass);
+          const failCount = this.countElementsInModelIdMap(modelIdMap.fail);
+          console.log(`- Pass count: ${passCount}, Fail count: ${failCount}`);
 
-          for (const [specId, specification] of this._idsComponent.list) {
-            console.log(`Testing specification: ${specId}`);
+          specResults.push({
+            id: specId,
+            specification: specification,
+            testResult: testResult,
+            modelIdMap: modelIdMap
+          });
 
-            try {
-              // Use the correct API: spec.test([modelIds])
-              console.log(`Testing specification ${specId} with regex patterns:`, modelIds);
-              const testResult = await (specification as any).test(modelIds);
-              console.log(`Specification ${specId} test result:`, testResult);
-
-              // Convert result to ModelIdMap using the component's method
-              const modelIdMap = this._idsComponent.getModelIdMap(testResult);
-              console.log(`Specification ${specId} ModelIdMap:`, modelIdMap);
-
-              // Detailed inspection of pass/fail results
-              console.log(`Specification ${specId} detailed results:`);
-              console.log(`- Pass elements:`, modelIdMap.pass);
-              console.log(`- Fail elements:`, modelIdMap.fail);
-
-              // Count elements in each category
-              const passCount = this.countElementsInModelIdMap(modelIdMap.pass);
-              const failCount = this.countElementsInModelIdMap(modelIdMap.fail);
-              console.log(`- Pass count: ${passCount}, Fail count: ${failCount}`);
-
-              specResults.push({
-                id: specId,
-                specification: specification,
-                testResult: testResult,
-                modelIdMap: modelIdMap
-              });
-
-            } catch (error) {
-              console.error(`Error testing specification ${specId}:`, error);
-              if (error instanceof Error) {
-                console.error(`Error details:`, error.message);
-                console.error(`Stack trace:`, error.stack);
-              }
-
-              // Try alternative approaches
-              try {
-                console.log(`Trying alternative approach for specification ${specId}...`);
-                // Try with just the model name as string
-                const altResult = await (specification as any).test(modelNames);
-                console.log(`Alternative test result:`, altResult);
-
-                const altModelIdMap = this._idsComponent.getModelIdMap(altResult);
-                specResults.push({
-                  id: specId,
-                  specification: specification,
-                  testResult: altResult,
-                  modelIdMap: altModelIdMap
-                });
-              } catch (altError) {
-                console.error(`Alternative approach also failed:`, altError);
-              }
-            }
-          }
-
-          if (specResults.length > 0) {
-            console.log("Successfully ran IDS validation with real results!");
-            results = { specifications: specResults };
-          } else {
-            console.warn("No specifications could be tested");
-            results = { mockValidation: true };
-          }
-        } else {
-          console.warn("No specifications available for testing");
-          results = { mockValidation: true };
+        } catch (error) {
+          console.error(`Error testing specification ${specId}:`, error);
         }
       }
 
+      let results: any = {};
+      if (specResults.length > 0) {
+        console.log("Successfully ran IDS validation!");
+        results = { specifications: specResults };
+      } else {
+        throw new Error("No specifications could be tested");
+      }
       // Transform results to UI-friendly format
       this._currentResults = this.transformValidationResults(results);
 
@@ -678,24 +551,18 @@ export class IDSIntegration extends OBC.Component {
           }
         }
 
-        // Case 5: Mock results for development/testing (fallback)
+        // Case 5: No valid results structure found
         else {
-          console.log("Using mock results as fallback - no matching structure found");
-          transformedResults.push(...this.createMockResults(modelNames));
-        }
-      } else {
+          console.warn("No valid validation results structure found");
+        }      } else {
         // No results or invalid format - create empty results
         console.warn("No validation results to transform");
       }
 
     } catch (error) {
       console.error("Failed to transform validation results:", error);
-      // Return mock results on error to prevent UI breakage
-      const fragmentsManager = this.components.get(OBC.FragmentsManager);
-      const modelNames = Array.from(fragmentsManager.list.keys());
-      transformedResults.push(...this.createMockResults(modelNames));
+      // Return empty results on error to prevent UI breakage
     }
-
     return transformedResults;
   }
 
@@ -991,103 +858,6 @@ export class IDSIntegration extends OBC.Component {
     }
   }
 
-  /**
-   * Create mock results for development and testing
-   */
-  private createMockResults(modelNames: string[]): ValidationDisplayResult[] {
-    const modelName = modelNames.length > 0 ? modelNames[0] : 'Sample Model';
-
-    // Get actual element IDs from the loaded model for realistic mock data
-    const actualElementIds = this.getActualElementIds();
-
-    // Use actual element IDs from the loaded model, or fallback to known IDs
-    const mockFailedElements = [
-      {
-        elementId: actualElementIds.length > 0 ? actualElementIds[0].toString() : '33', // First actual element
-        elementType: 'IfcDoor',
-        elementName: 'Main Entrance Door',
-        reason: 'Width 0.75m is below minimum requirement of 0.8m',
-      },
-      {
-        elementId: actualElementIds.length > 1 ? actualElementIds[1].toString() : '34', // Second actual element
-        elementType: 'IfcDoor',
-        elementName: 'Storage Room Door',
-        reason: 'Width 0.7m is below minimum requirement of 0.8m',
-      },
-      {
-        elementId: actualElementIds.length > 2 ? actualElementIds[2].toString() : '35', // Third actual element
-        elementType: 'IfcWall',
-        elementName: 'Interior Wall',
-        reason: 'Height 2.2m is below minimum requirement of 2.4m',
-      }
-    ];
-
-    console.log("Mock validation using actual element IDs:", mockFailedElements.map(e => e.elementId));
-
-    return [{
-      specificationId: 'mock-spec-1',
-      specificationName: 'Sample IDS Specification',
-      modelName: modelName,
-      requirements: [
-        {
-          id: 'req-1',
-          name: 'Wall Height Requirements',
-          description: 'All walls must have a minimum height of 2.4m',
-          status: 'failed' as const,
-          failedElements: [mockFailedElements[2]], // Wall failure
-          passedCount: 14,
-          failedCount: 1,
-          applicabilityCount: 15,
-        },
-        {
-          id: 'req-2',
-          name: 'Door Width Requirements',
-          description: 'All doors must have a minimum width of 0.8m',
-          status: 'failed' as const,
-          failedElements: [mockFailedElements[0], mockFailedElements[1]], // Door failures
-          passedCount: 8,
-          failedCount: 2,
-          applicabilityCount: 10,
-        }
-      ],
-      summary: {
-        totalRequirements: 2,
-        passedRequirements: 0,
-        failedRequirements: 2,
-      },
-      validationDate: new Date(),
-      modelId: modelName,
-    }];
-  }
-
-  /**
-   * Get actual element IDs from the loaded model for realistic mock data
-   */
-  private getActualElementIds(): number[] {
-    const elementIds: number[] = [];
-
-    try {
-      const fragmentsManager = this.components.get(OBC.FragmentsManager);
-
-      for (const [, model] of fragmentsManager.list) {
-        if (model.object && model.object.children) {
-          // Get actual mesh IDs from the loaded model
-          const meshes = model.object.children.slice(0, 10); // Get first 10 elements
-          meshes.forEach(mesh => {
-            const meshId = typeof mesh.id === 'number' ? mesh.id : parseInt(mesh.id, 10);
-            if (!isNaN(meshId)) {
-              elementIds.push(meshId);
-            }
-          });
-          break; // Only process first model
-        }
-      }
-    } catch (error) {
-      console.warn("Could not get actual element IDs:", error);
-    }
-
-    return elementIds;
-  }
 
   /**
    * Convert results to CSV format
