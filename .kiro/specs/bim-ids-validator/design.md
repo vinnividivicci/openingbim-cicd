@@ -53,13 +53,12 @@ The validation system integrates with existing components:
 
 ### Built-in IDS Components (Existing)
 
-**@thatopen/components** already provides IDS support through:
+**@thatopen/components** provides IDS support through:
 
 - **`OBC.IDSSpecifications`**: Component for managing IDS specifications
-- **Built-in IDS parsing**: Handles IDS XML file parsing and validation
-- **Integrated validation**: Executes validation against loaded IFC models
-- **Result management**: Provides structured validation results
-
+- **Built-in IDS parsing**: Uses `load()` method to parse IDS XML files
+- **Integrated validation**: Uses `spec.test()` method to validate against loaded IFC models
+- **Result management**: Returns structured validation results with element IDs and pass/fail status
 ### IDS Integration Wrapper
 
 **Purpose**: Provides a simplified interface to the existing IDS functionality for UI integration
@@ -261,32 +260,34 @@ interface UIRequirementResult {
 
 ## Implementation Phases
 
-### Phase 1: Built-in Component Integration
+**Current Status (July 2025)**: Phases 1-4 are complete. IDS validation is fully functional with real validation results. Phase 5 (Polish and Export) is partially complete - JSON export works but CSV export needs UI integration.
+
+### Phase 1: Built-in Component Integration ✓
 - Initialize OBC.IDSSpecifications component in main.ts
 - Add IDS file loading option to existing Models Panel
 - Create IDS Integration Wrapper for simplified UI access
 - Test basic IDS file loading and parsing
 
-### Phase 2: Validation Execution
+### Phase 2: Validation Execution ✓
 - Implement validation trigger in Models Panel UI
 - Create progress feedback during validation execution
 - Handle validation results from built-in component
 - Add basic error handling and user feedback
 
-### Phase 3: Results UI Implementation
+### Phase 3: Results UI Implementation ✓
 - Create validation results panel UI template
 - Add validation results section to content grid layout
 - Implement collapsible requirement display
 - Add basic result summary and status badges
 
-### Phase 4: 3D Viewer Integration
+### Phase 4: 3D Viewer Integration ✓
 - Integrate validation results with existing Highlighter
 - Add element focusing using existing camera controls
 - Implement click-to-focus functionality from results panel
 - Add validation-specific highlighting colors
 
-### Phase 5: Polish and Export
-- Add export functionality leveraging built-in result data
-- Implement result filtering and search capabilities
-- Add comprehensive error handling and user feedback
-- Performance testing and optimization
+### Phase 5: Polish and Export (Partial)
+- Add export functionality leveraging built-in result data (JSON ✓, CSV pending)
+- Implement result filtering and search capabilities (pending)
+- Add comprehensive error handling and user feedback (pending)
+- Performance testing and optimization (pending)
