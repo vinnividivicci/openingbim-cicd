@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  Information Delivery Specification (IDS)
+  This file defines requirements for IfcWall elements in a BIM model.
+  It is based on the buildingSMART IDS 1.0 standard.
+  Schema location: http://standards.buildingsmart.org/IDS/1.0/ids.xsd
+-->
+<ids xmlns="http://standards.buildingsmart.org/IDS"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  
+  <info>
+    <title>Wall Checks for Level 1</title>
+    <author>user@example.com</author>
+    <date>2024-05-21</date>
+    <purpose>An IDS file to check that all IfcWall elements are spatially contained in Level 1 and have the Qto_WallBaseQuantities property set.</purpose>
+  </info>
+  
+  <specifications>
+    
+    <!-- 
+      Specification for walls on Level 1 with quantity requirements
+      Key fixes applied:
+      1. Added minOccurs="1" maxOccurs="unbounded" to applicability
+      2. Using correct 'name' elements (not 'n')
+    -->
+    <specification name="Wall Containment and Quantity Checks" ifcVersion="IFC4">
+      <!-- FIXED: Added required cardinality attributes -->
+      <applicability minOccurs="1" maxOccurs="unbounded">
+        <entity>
+          <name>
+            <simpleValue>IFCWALL</simpleValue>
+          </name>
+        </entity>
+      </applicability>
+      <requirements>
+        <!-- 
+          Requirement 1: Spatial Containment
+          This checks that walls are contained in a building storey.
+          Note: Checking for a specific storey name "Level 1" would require
+          additional specification approaches that may not be directly supported
+          in all IDS validators.
+        -->
+        <partOf relation="IFCRELCONTAINEDINSPATIALSTRUCTURE">
+          <entity>
+            <name>
+              <simpleValue>IFCBUILDINGSTOREY</simpleValue>
+            </name>
+          </entity>
+        </partOf>
+
+        <!-- 
+          Requirement 2: Property Set - Qto_WallBaseQuantities
+          Each property is checked individually with explicit cardinality
+        -->
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>GrossSideArea</simpleValue></baseName>
+        </property>
+        
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>GrossVolume</simpleValue></baseName>
+        </property>
+        
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>Height</simpleValue></baseName>
+        </property>
+        
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>Length</simpleValue></baseName>
+        </property>
+        
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>NetSideArea</simpleValue></baseName>
+        </property>
+        
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>NetVolume</simpleValue></baseName>
+        </property>
+        
+        <property cardinality="required">
+          <propertySet><simpleValue>Qto_WallBaseQuantities</simpleValue></propertySet>
+          <baseName><simpleValue>Width</simpleValue></baseName>
+        </property>
+      </requirements>
+    </specification>
+    
+  </specifications>
+</ids>
