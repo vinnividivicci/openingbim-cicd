@@ -1,7 +1,7 @@
 ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('ViewDefinition[DesignTransferView]'),'2;1');
-FILE_NAME('test-model-4-walls.ifc','2025-08-12T22:50:17-04:00',(''),(''),'IfcOpenShell 0.8.3-post1','Bonsai 0.8.3-post1','Nobody');
+FILE_NAME('test-model-4-walls.ifc','2025-08-14T21:34:08-04:00',(''),(''),'IfcOpenShell 0.8.3-post1','Bonsai 0.8.3-post1','Nobody');
 FILE_SCHEMA(('IFC4'));
 ENDSEC;
 DATA;
