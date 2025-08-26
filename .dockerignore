@@ -1,0 +1,17 @@
+node_modules
+.git
+.gitignore
+Dockerfile
+
+.dockerignore
+README.md
+AGENTS.md
+GEMINI.md
+gpl-3.0.txt
+setup-tests.md
+.vscode
+docs
+gemini
+bonsai
+.playwright-mcp
+
