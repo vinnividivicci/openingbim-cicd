@@ -32,8 +32,8 @@ RUN npm ci
 # Copy source code
 COPY src ./src
 
-# Create temp directory for validation
-RUN mkdir -p /app/temp/validation
+# Create temp directories for validation and storage
+RUN mkdir -p /app/temp/validation /app/temp/storage/validation-results
 
 # Expose the server port
 EXPOSE 3001
@@ -41,6 +41,7 @@ EXPOSE 3001
 # Set environment variables
 ENV NODE_ENV=development
 ENV PYTHON_PATH=/opt/venv/bin/python3
+ENV PORT=3001
 
 # Start the server in development mode
 CMD ["npm", "run", "server"]
@@ -73,13 +74,14 @@ COPY tsconfig*.json ./
 # Install production dependencies only
 RUN npm ci --only=production
 
-# Copy built application from development or build stage
-COPY --from=development /app/dist ./dist
-COPY src/server/python ./src/server/python
+# Copy application source from development stage
+COPY --from=development /app/src ./src
+COPY --from=development /app/node_modules ./node_modules
 
 # Create necessary directories
 RUN mkdir -p /app/temp/validation \
     /app/temp/storage \
+    /app/temp/storage/validation-results \
     /app/temp/fragments
 
 # Create non-root user for security
@@ -93,10 +95,11 @@ EXPOSE 3001
 # Set environment variables
 ENV NODE_ENV=production
 ENV PYTHON_PATH=/opt/venv/bin/python3
+ENV PORT=3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3001/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
 
 # Start the server
-CMD ["node", "dist/server/index.js"]
+CMD ["npx", "tsx", "src/server/server.ts"]

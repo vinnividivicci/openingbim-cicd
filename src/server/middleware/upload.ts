@@ -44,14 +44,14 @@ export const uploadIFC = multer({
   },
 }).single('ifcFile');
 
-// Configure multer for IDS validation (fragments + IDS file)
+// Configure multer for IDS validation (IFC + IDS file)
 export const uploadForIDS = multer({
   storage: storage,
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB max file size
   },
 }).fields([
-  { name: 'fragmentsFile', maxCount: 1 },
+  { name: 'ifcFile', maxCount: 1 },
   { name: 'idsFile', maxCount: 1 },
 ]);
 

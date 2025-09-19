@@ -10,19 +10,19 @@ router.post('/check', uploadForIDS, handleMulterError, async (req: Request, res:
     // Check if files were uploaded
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-    if (!files || !files.fragmentsFile || !files.fragmentsFile[0]) {
-      return res.status(400).json({ error: 'No fragments file provided' });
+    if (!files || !files.ifcFile || !files.ifcFile[0]) {
+      return res.status(400).json({ error: 'No IFC file provided' });
     }
 
     if (!files.idsFile || !files.idsFile[0]) {
       return res.status(400).json({ error: 'No IDS file provided' });
     }
 
-    const fragmentsFile = files.fragmentsFile[0];
+    const ifcFile = files.ifcFile[0];
     const idsFile = files.idsFile[0];
 
     console.log(`Received files for IDS validation:`);
-    console.log(`  - Fragments: ${fragmentsFile.originalname}, size: ${fragmentsFile.size} bytes`);
+    console.log(`  - IFC: ${ifcFile.originalname}, size: ${ifcFile.size} bytes`);
     console.log(`  - IDS: ${idsFile.originalname}, size: ${idsFile.size} bytes`);
 
     // Check if IfcTesterService is available
@@ -38,14 +38,11 @@ router.post('/check', uploadForIDS, handleMulterError, async (req: Request, res:
       }
     }
 
-    // Start the validation process using IfcTesterService
-    // Note: We're using the fragments file as IFC input
-    // In a real scenario, you might want to convert fragments back to IFC
-    // or accept IFC files directly for IDS validation
+    // Start the validation process using IfcTesterService with IFC file
     const jobId = await ifcTesterService.runValidation(
-      fragmentsFile.buffer,
+      ifcFile.buffer,
       idsFile.buffer,
-      fragmentsFile.originalname
+      ifcFile.originalname
     );
 
     // Return 202 Accepted with job ID

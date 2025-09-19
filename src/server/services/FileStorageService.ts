@@ -44,6 +44,7 @@ export class FileStorageService {
       await fs.mkdir(this.storageDir, { recursive: true });
       await fs.mkdir(path.join(this.storageDir, 'fragments'), { recursive: true });
       await fs.mkdir(path.join(this.storageDir, 'uploads'), { recursive: true });
+      await fs.mkdir(path.join(this.storageDir, 'validation-results'), { recursive: true });
       console.log('File storage initialized at:', this.storageDir);
     } catch (error) {
       console.error('Failed to initialize storage:', error);
@@ -85,7 +86,7 @@ export class FileStorageService {
   public async storeFile(
     buffer: Buffer,
     originalName: string,
-    type: 'fragments' | 'uploads',
+    type: 'fragments' | 'uploads' | 'validation-results',
     mimeType: string = 'application/octet-stream'
   ): Promise<string> {
     try {

@@ -50,8 +50,8 @@ The current application is a monolithic frontend application where all the proce
 
 *   **Endpoint:** `POST /api/v1/ids/check`
 *   **Request:** `multipart/form-data` with two fields:
-    *   `fragmentsFile`: The fragments file.
-    *   `idsFile`: The IDS XML file.
+    *   `ifcFile`: The IFC file to validate.
+    *   `idsFile`: The IDS XML file containing validation requirements.
 *   **Response (Success):**
     *   **Status Code:** `202 Accepted`
     *   **Body:**
