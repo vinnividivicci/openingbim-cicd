@@ -30,7 +30,7 @@ async function runHeadlessPoc() {
   } catch (error) {
     console.error('An error occurred during the headless POC:', error);
   } finally {
-    ifcApi.Close();
+    ifcApi.Dispose();
   }
 }
 
