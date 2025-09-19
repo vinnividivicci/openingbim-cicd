@@ -9,7 +9,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "server": "nodemon src/server/server.ts"
+    "server": "tsx watch src/server/server.ts",
+    "server:build": "tsc -p tsconfig.server.json"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
@@ -31,6 +32,7 @@
     "nodemon": "^3.1.4",
     "prettier": "3.3.3",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
     "typescript": "5.2.2",
     "vite": "5.2.0",
     "vitest": "^3.2.4"

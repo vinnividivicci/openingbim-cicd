@@ -10,8 +10,10 @@ export interface Job {
 class JobQueue {
   private jobs: Map<string, Job> = new Map();
 
-  createJob(jobId: string): void {
+  createJob(): string {
+    const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.jobs.set(jobId, { status: 'in-progress', progress: 0 });
+    return jobId;
   }
 
   getJob(jobId: string): Job | undefined {
@@ -26,4 +28,5 @@ class JobQueue {
   }
 }
 
-export default new JobQueue();
+export const jobQueue = new JobQueue();
+export default jobQueue;
