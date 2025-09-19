@@ -1,0 +1,102 @@
+# Dockerfile for the BIM-IDS Validator Backend Server
+# This includes Node.js for the API server and Python for IDS validation
+
+# Use Node.js image with Python pre-installed
+FROM node:20-bookworm AS development
+
+# Install Python and pip
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Python virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python requirements and install them
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install Node.js dependencies
+RUN npm ci
+
+# Copy source code
+COPY src ./src
+
+# Create temp directory for validation
+RUN mkdir -p /app/temp/validation
+
+# Expose the server port
+EXPOSE 3001
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV PYTHON_PATH=/opt/venv/bin/python3
+
+# Start the server in development mode
+CMD ["npm", "run", "server"]
+
+# Production stage
+FROM node:20-bookworm-slim AS production
+
+# Install Python and required system libraries
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Python virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python requirements and install them
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production
+
+# Copy built application from development or build stage
+COPY --from=development /app/dist ./dist
+COPY src/server/python ./src/server/python
+
+# Create necessary directories
+RUN mkdir -p /app/temp/validation \
+    /app/temp/storage \
+    /app/temp/fragments
+
+# Create non-root user for security
+RUN useradd -m -u 1001 appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Expose the server port
+EXPOSE 3001
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PYTHON_PATH=/opt/venv/bin/python3
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3001/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
+
+# Start the server
+CMD ["node", "dist/server/index.js"]

@@ -1,8 +1,8 @@
 node_modules
 .git
 .gitignore
-Dockerfile
-
+Dockerfile*
+docker-compose*.yml
 .dockerignore
 README.md
 AGENTS.md
@@ -14,4 +14,48 @@ docs
 gemini
 bonsai
 .playwright-mcp
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+coverage/
+.nyc_output/
+*.test.js
+*.spec.js
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.venv/
+
+# Sample/test files
+samples/
+test-data/
 

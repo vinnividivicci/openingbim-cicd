@@ -4,7 +4,11 @@
       "WebSearch",
       "WebFetch(domain:docs.thatopen.com)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:docs.ifcopenshell.org)",
+      "WebFetch(domain:pypi.org)"
     ],
     "deny": [],
     "ask": []

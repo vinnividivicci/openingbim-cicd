@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Frontend service (if needed separately)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:3001
+    networks:
+      - bim-network
+
+  # Backend API server with IDS validation
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+      target: production
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - PYTHON_PATH=/opt/venv/bin/python3
+      # Add any other environment variables needed
+    volumes:
+      # Persist storage for uploaded files and results
+      - validation-data:/app/temp/validation
+      - storage-data:/app/temp/storage
+      - fragments-data:/app/temp/fragments
+    networks:
+      - bim-network
+    restart: unless-stopped
+
+  # Development configuration (optional)
+  backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+      target: development
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - PYTHON_PATH=/opt/venv/bin/python3
+    volumes:
+      # Mount source code for hot reloading in development
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.server.json:/app/tsconfig.server.json
+      - validation-data:/app/temp/validation
+      - storage-data:/app/temp/storage
+      - fragments-data:/app/temp/fragments
+    networks:
+      - bim-network
+    profiles:
+      - dev
+
+volumes:
+  validation-data:
+  storage-data:
+  fragments-data:
+
+networks:
+  bim-network:
+    driver: bridge

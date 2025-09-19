@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { uploadForIDS, handleMulterError } from '../../middleware/upload';
-import { idsValidationService } from '../../services/IDSValidationService';
+import { ifcTesterService } from '../../services/IfcTesterService';
 
 const router = Router();
 
@@ -25,10 +25,27 @@ router.post('/check', uploadForIDS, handleMulterError, async (req: Request, res:
     console.log(`  - Fragments: ${fragmentsFile.originalname}, size: ${fragmentsFile.size} bytes`);
     console.log(`  - IDS: ${idsFile.originalname}, size: ${idsFile.size} bytes`);
 
-    // Start the validation process
-    const jobId = await idsValidationService.runValidation(
+    // Check if IfcTesterService is available
+    if (!ifcTesterService.isServiceAvailable()) {
+      // Try to initialize if not already done
+      try {
+        await ifcTesterService.initialize();
+      } catch (initError) {
+        return res.status(503).json({
+          error: 'IDS validation service unavailable',
+          details: 'Python or required packages (ifctester, ifcopenshell) not installed',
+        });
+      }
+    }
+
+    // Start the validation process using IfcTesterService
+    // Note: We're using the fragments file as IFC input
+    // In a real scenario, you might want to convert fragments back to IFC
+    // or accept IFC files directly for IDS validation
+    const jobId = await ifcTesterService.runValidation(
       fragmentsFile.buffer,
-      idsFile.buffer
+      idsFile.buffer,
+      fragmentsFile.originalname
     );
 
     // Return 202 Accepted with job ID
@@ -37,6 +54,33 @@ router.post('/check', uploadForIDS, handleMulterError, async (req: Request, res:
     console.error('Error initiating IDS validation:', error);
     res.status(500).json({
       error: 'Failed to start IDS validation',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// GET /api/v1/ids/results/:fileId - Download validation results
+router.get('/results/:fileId', async (req: Request, res: Response) => {
+  try {
+    const { fileId } = req.params;
+
+    // Get the validation results file
+    const fileData = await ifcTesterService.getValidationResults(fileId);
+
+    if (!fileData) {
+      return res.status(404).json({ error: 'Validation results not found' });
+    }
+
+    // Set appropriate headers for JSON download
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="validation-results-${fileId}.json"`);
+
+    // Send the file
+    res.send(fileData);
+  } catch (error) {
+    console.error('Error downloading validation results:', error);
+    res.status(500).json({
+      error: 'Failed to download validation results',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
