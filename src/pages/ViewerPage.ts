@@ -432,27 +432,33 @@ export async function loadValidationResults(resultsId: string) {
         // Process each requirement in the specification
         if (spec.requirements && Array.isArray(spec.requirements)) {
           spec.requirements.forEach((req: any) => {
-            // Determine requirement status based on failed elements
-            const hasFailed = req.failed_elements && req.failed_elements.length > 0;
+            // Check both failed_entities (backend format) and failed_elements for compatibility
+            const failedEntities = req.failed_entities || req.failed_elements || [];
+            const hasFailed = failedEntities.length > 0 || req.status === false;
             const status = hasFailed ? 'failed' : 'passed';
 
-            // Map failed elements
-            const failedElements: FailedElementInfo[] = (req.failed_elements || []).map((elem: any) => ({
-              elementId: elem.element_id || elem.id || elem,
-              elementType: elem.element_type || 'Unknown',
-              elementName: elem.element_name,
-              reason: elem.failure_reason || elem.reason || 'Requirement not met',
+            // Map failed entities/elements with correct field names from backend
+            const failedElements: FailedElementInfo[] = failedEntities.map((elem: any) => ({
+              elementId: elem.global_id || elem.element_id || elem.id || elem,
+              elementType: elem.class || elem.element_type || 'Unknown',
+              elementName: elem.name || elem.element_name,
+              reason: elem.reason || elem.failure_reason || 'Requirement not met',
               properties: elem.properties
             }));
 
+            // Use backend field names for counts
+            const totalApplicable = req.total_applicable || req.applicable_count || req.total_elements || 0;
+            const totalPass = req.total_pass || req.total_applicable_pass || req.passed_count || 0;
+            const totalFail = req.total_fail || req.total_applicable_fail || req.failed_count || failedElements.length;
+
             requirements.push({
               id: req.id || req.requirement_id || `req_${requirements.length}`,
-              name: req.name || req.description || 'Requirement',
-              description: req.description,
+              name: req.label || req.name || req.description || 'Requirement',
+              description: req.description || req.value || '',
               status: status,
-              applicabilityCount: req.applicable_count || req.total_elements || 0,
-              passedCount: req.passed_count || (req.total_elements - failedElements.length) || 0,
-              failedCount: req.failed_count || failedElements.length || 0,
+              applicabilityCount: totalApplicable,
+              passedCount: totalPass,
+              failedCount: totalFail,
               failedElements: failedElements
             });
           });
@@ -462,9 +468,21 @@ export async function loadValidationResults(resultsId: string) {
         const totalRequirements = requirements.length;
         const passedRequirements = requirements.filter(r => r.status === 'passed').length;
         const failedRequirements = requirements.filter(r => r.status === 'failed').length;
-        const totalElements = requirements.reduce((sum, r) => sum + (r.applicabilityCount || 0), 0);
-        const passedElements = requirements.reduce((sum, r) => sum + r.passedCount, 0);
-        const failedElements = requirements.reduce((sum, r) => sum + r.failedCount, 0);
+
+        // Use backend counts if available, otherwise calculate from requirements
+        const totalElements = spec.total_applicable ||
+                            spec.total_checks ||
+                            requirements.reduce((sum, r) => sum + (r.applicabilityCount || 0), 0);
+        const passedElements = spec.total_applicable_pass ||
+                             spec.total_checks_pass ||
+                             requirements.reduce((sum, r) => sum + r.passedCount, 0);
+        const failedElements = spec.total_applicable_fail ||
+                             spec.total_checks_fail ||
+                             requirements.reduce((sum, r) => sum + r.failedCount, 0);
+
+        // Also check specification-level status from backend
+        const specStatus = spec.status === false ? 'failed' :
+                          (failedRequirements > 0 ? 'failed' : 'passed');
 
         transformedResults.push({
           specificationId: spec.id || spec.specification_id || `spec_${transformedResults.length}`,
