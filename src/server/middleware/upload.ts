@@ -40,7 +40,7 @@ export const uploadIFC = multer({
   storage: storage,
   fileFilter: ifcFileFilter,
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB max file size
+    fileSize: 1024 * 1024 * 1024, // 1GB max file size
   },
 }).single('ifcFile');
 
@@ -48,7 +48,7 @@ export const uploadIFC = multer({
 export const uploadForIDS = multer({
   storage: storage,
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB max file size
+    fileSize: 1024 * 1024 * 1024, // 1GB max file size
   },
 }).fields([
   { name: 'ifcFile', maxCount: 1 },
@@ -59,7 +59,7 @@ export const uploadForIDS = multer({
 export const handleMulterError = (error: any, req: Request, res: any, next: any) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 500MB.' });
+      return res.status(400).json({ error: 'File too large. Maximum size is 1GB.' });
     }
     return res.status(400).json({ error: `Upload error: ${error.message}` });
   } else if (error) {

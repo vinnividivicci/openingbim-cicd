@@ -34,7 +34,7 @@ export type ContentGridElements = [
   ValidationResults,
 ];
 
-export type ContentGridLayouts = ["Viewer"];
+export type ContentGridLayouts = ["Viewer", "Landing"];
 
 export interface ContentGridState {
   components: OBC.Components;

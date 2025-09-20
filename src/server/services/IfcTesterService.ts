@@ -191,6 +191,7 @@ export class IfcTesterService {
         status: 'completed',
         progress: 100,
         result: {
+          fileId: resultsFileId,
           validationResults,
           resultsFileUrl: `/api/v1/ids/results/${resultsFileId}`,
         },
