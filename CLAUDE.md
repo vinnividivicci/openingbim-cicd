@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:coverage` - Generate test coverage report
 
 ### Backend Server
-- `npm run server` - Start Express backend server with hot reloading (port 3000)
+- `npm run server` - Start Express backend server with hot reloading (port 3001)
 - `npm run server:build` - Build backend TypeScript to dist/server
 
 ### Code Quality
@@ -22,8 +22,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npx tsc --noEmit` - Type check without emitting files
 
 ### Python Environment (for IDS validation)
-- `pip install -r requirements.txt` - Install Python dependencies (ifctester, ifcopenshell)
-- Python path configured via `PYTHON_PATH` env var or defaults to `.venv/Scripts/python`
+- `python -m venv .venv` - Create virtual environment
+- `.venv/bin/pip install -r requirements.txt` - Install Python dependencies (ifctester==0.8.3, ifcopenshell==0.8.3.post2)
+- Python path configured via `PYTHON_PATH` env var or platform-aware default (`.venv/bin/python` on Linux/Mac, `.venv/Scripts/python` on Windows)
+- Requires Python 3.9-3.13
 
 ## Architecture Overview
 
