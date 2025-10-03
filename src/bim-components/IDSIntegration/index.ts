@@ -365,124 +365,25 @@ export class IDSIntegration extends OBC.Component {
   }
 
   /**
-   * Convert element IDs (express IDs) to ModelIdMap format with local IDs for highlighting
+   * Convert element IDs to ModelIdMap for highlighting
+   * @param elementIds Array of element IDs (IFC GUIDs) from validation results
+   * @returns ModelIdMap for highlighting
    */
   private async convertElementIdsToModelIdMap(elementIds: string[]): Promise<OBC.ModelIdMap> {
-    const modelIdMap: OBC.ModelIdMap = {};
+    const fragmentsManager = this.components.get(OBC.FragmentsManager);
 
-    try {
-      const fragmentsManager = this.components.get(OBC.FragmentsManager);
+    console.log(`Converting ${elementIds.length} GUIDs to ModelIdMap:`, elementIds);
 
-      console.log("Converting element IDs to ModelIdMap with local IDs:", elementIds);
+    // Use the built-in GUID to ModelIdMap conversion
+    const modelIdMap = await fragmentsManager.guidsToModelIdMap(elementIds);
 
-      for (const [modelId, model] of fragmentsManager.list) {
-        const localIds: Set<number> = new Set();
-
-        console.log(`Processing model: ${modelId}`);
-
-        // Convert express IDs to local IDs using the fragment system
-        for (const elementId of elementIds) {
-          try {
-            // Method 1: Try parsing as numeric express ID
-            const expressId = parseInt(elementId, 10);
-            if (!isNaN(expressId) && expressId > 0) {
-
-              // Try to convert express ID to local ID using available methods
-              try {
-                // Check if the model has a method to get fragment map
-                if (typeof (model as any).getFragmentMap === 'function') {
-                  const fragmentMap = (model as any).getFragmentMap([expressId]);
-
-                  if (fragmentMap && Object.keys(fragmentMap).length > 0) {
-                    // Add all local IDs for this express ID
-                    for (const fragmentId in fragmentMap) {
-                      const localIdArray = fragmentMap[fragmentId];
-                      if (Array.isArray(localIdArray)) {
-                        localIdArray.forEach(localId => {
-                          localIds.add(localId);
-                          console.log(`Converted express ID ${expressId} to local ID ${localId} in fragment ${fragmentId}`);
-                        });
-                      }
-                    }
-                  } else {
-                    console.warn(`Express ID ${expressId} not found in model ${modelId}`);
-                  }
-                } else {
-                  // Fallback: Use express ID as local ID (this might work in some cases)
-                  console.warn(`getFragmentMap not available, using express ID ${expressId} as local ID`);
-                  localIds.add(expressId);
-                }
-              } catch (conversionError) {
-                console.warn(`Could not convert express ID ${expressId}:`, conversionError);
-                // Fallback: Use express ID as local ID
-                localIds.add(expressId);
-              }
-            }
-          } catch (error) {
-            console.warn(`Could not process element ${elementId}:`, error);
-          }
-        }
-
-        // Only add to map if we found valid local IDs
-        if (localIds.size > 0) {
-          modelIdMap[modelId] = localIds;
-          console.log(`Model ${modelId} has ${localIds.size} local IDs to highlight:`, Array.from(localIds));
-        }
+    if (OBC.ModelIdMapUtils.isEmpty(modelIdMap)) {
+      console.warn(`No elements found for GUIDs: ${elementIds.join(', ')}`);
+    } else {
+      // Log the successful conversion
+      for (const [modelId, localIds] of Object.entries(modelIdMap)) {
+        console.log(`Model ${modelId}: Found ${localIds.size} local IDs for highlighting`);
       }
-
-      // If no elements were found, try a fallback approach for demonstration
-      if (OBC.ModelIdMapUtils.isEmpty(modelIdMap)) {
-        console.warn("No valid elements found using express IDs. Trying fallback approach...");
-        console.log("Element IDs to highlight:", elementIds);
-        console.log("Available models:", Array.from(fragmentsManager.list.keys()));
-
-        // Fallback: Try to get some actual local IDs from the loaded models
-        for (const [modelId, model] of fragmentsManager.list) {
-          const fallbackLocalIds: Set<number> = new Set();
-
-          try {
-            // Try to get some actual fragment data
-            if (model.object && model.object.children) {
-              // Get the first few mesh objects and try to extract their local IDs
-              const meshes = model.object.children.slice(0, Math.min(5, elementIds.length));
-
-              meshes.forEach((mesh, index) => {
-                if (index < elementIds.length) {
-                  // Try to get the local ID from the mesh
-                  // The mesh ID might be the local ID we need
-                  const meshId = typeof mesh.id === 'number' ? mesh.id : parseInt(mesh.id, 10);
-                  if (!isNaN(meshId)) {
-                    fallbackLocalIds.add(meshId);
-                    console.log(`Added fallback local ID ${meshId} from mesh for element ${elementIds[index]}`);
-                  }
-                }
-              });
-            }
-
-            // If we still don't have any IDs, try some common ranges
-            if (fallbackLocalIds.size === 0) {
-              // Add some IDs that are likely to exist based on the debug output (33-42)
-              [33, 34, 35, 36, 37].forEach((id, index) => {
-                if (index < elementIds.length) {
-                  fallbackLocalIds.add(id);
-                  console.log(`Added fallback local ID ${id} for element ${elementIds[index]}`);
-                }
-              });
-            }
-
-          } catch (error) {
-            console.warn(`Error in fallback approach for model ${modelId}:`, error);
-          }
-
-          if (fallbackLocalIds.size > 0) {
-            modelIdMap[modelId] = fallbackLocalIds;
-            console.log(`Model ${modelId} fallback highlighting with local IDs:`, Array.from(fallbackLocalIds));
-          }
-        }
-      }
-
-    } catch (error) {
-      console.error("Error converting element IDs to ModelIdMap:", error);
     }
 
     return modelIdMap;

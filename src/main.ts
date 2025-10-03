@@ -1,314 +1,114 @@
-import * as THREE from "three";
-import * as OBC from "@thatopen/components";
-import * as OBF from "@thatopen/components-front";
 import * as BUI from "@thatopen/ui";
-import * as TEMPLATES from "./ui-templates";
-import { appIcons, CONTENT_GRID_ID, setGlobalIDSIntegration } from "./globals";
-import { viewportSettingsTemplate } from "./ui-templates/buttons/viewport-settings";
-import { IDSIntegration } from "./bim-components";
+import { createLandingPage } from "./pages/LandingPage";
+import { initializeViewer, loadFragmentFromAPI, loadValidationResults, showViewer, hideViewer } from "./pages/ViewerPage";
+import "./styles/landing-page.css";
 
 BUI.Manager.init();
 
-// Components Setup
+// Simple Router Implementation
+class Router {
+  private routes: Map<string, () => Promise<void>> = new Map();
+  private currentRoute: string = '';
+  private landingPage: HTMLElement | null = null;
+  private appContainer: HTMLElement | null = null;
+  private landingPageUnsubscribe: (() => void) | null = null;
 
-const components = new OBC.Components();
-const worlds = components.get(OBC.Worlds);
-
-const world = worlds.create<
-  OBC.SimpleScene,
-  OBC.OrthoPerspectiveCamera,
-  OBF.PostproductionRenderer
->();
-
-world.name = "Main";
-world.scene = new OBC.SimpleScene(components);
-world.scene.setup();
-world.scene.three.background = new THREE.Color(0x1a1d23);
-
-const viewport = BUI.Component.create<BUI.Viewport>(() => {
-  return BUI.html`<bim-viewport></bim-viewport>`;
-});
-
-world.renderer = new OBF.PostproductionRenderer(components, viewport);
-world.camera = new OBC.OrthoPerspectiveCamera(components);
-world.camera.threePersp.near = 0.01;
-world.camera.threePersp.updateProjectionMatrix();
-world.camera.controls.restThreshold = 0.05;
-
-const worldGrid = components.get(OBC.Grids).create(world);
-worldGrid.material.uniforms.uColor.value = new THREE.Color(0x494b50);
-worldGrid.material.uniforms.uSize1.value = 2;
-worldGrid.material.uniforms.uSize2.value = 8;
-
-const resizeWorld = () => {
-  world.renderer?.resize();
-  world.camera.updateAspect();
-};
-
-viewport.addEventListener("resize", resizeWorld);
-
-world.dynamicAnchor = false;
-
-components.init();
-
-components.get(OBC.Raycasters).get(world);
-
-const { postproduction } = world.renderer;
-postproduction.enabled = true;
-postproduction.style = OBF.PostproductionAspect.COLOR_SHADOWS;
-
-const { aoPass, edgesPass } = world.renderer.postproduction;
-
-edgesPass.color = new THREE.Color(0x494b50);
-
-const aoParameters = {
-  radius: 0.25,
-  distanceExponent: 1,
-  thickness: 1,
-  scale: 1,
-  samples: 16,
-  distanceFallOff: 1,
-  screenSpaceRadius: true,
-};
-
-const pdParameters = {
-  lumaPhi: 10,
-  depthPhi: 2,
-  normalPhi: 3,
-  radius: 4,
-  radiusExponent: 1,
-  rings: 2,
-  samples: 16,
-};
-
-aoPass.updateGtaoMaterial(aoParameters);
-aoPass.updatePdMaterial(pdParameters);
-
-const fragments = components.get(OBC.FragmentsManager);
-
-// Initialize FragmentsManager with worker from CDN (recommended approach)
-const githubUrl = "https://thatopen.github.io/engine_fragment/resources/worker.mjs";
-const fetchedUrl = await fetch(githubUrl);
-const workerBlob = await fetchedUrl.blob();
-const workerFile = new File([workerBlob], "worker.mjs", {
-  type: "text/javascript",
-});
-const workerUrl = URL.createObjectURL(workerFile);
-fragments.init(workerUrl);
-
-fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
-  const isLod = "isLodMaterial" in material && material.isLodMaterial;
-  if (isLod) {
-    world.renderer!.postproduction.basePass.isolatedMaterials.push(material);
+  constructor() {
+    this.appContainer = document.getElementById('app');
+    window.addEventListener('hashchange', () => this.handleRouteChange());
   }
-});
 
-world.camera.projection.onChanged.add(() => {
-  for (const [_, model] of fragments.list) {
-    model.useCamera(world.camera.three);
+  register(path: string, handler: () => Promise<void>) {
+    this.routes.set(path, handler);
   }
-  fragments.core.update(true);
-});
-// Update fragments during camera movement for better LOD and culling
-world.camera.controls.addEventListener("update", () => {
-  fragments.core.update(true);
-});
 
-world.camera.controls.addEventListener("rest", () => {
-  fragments.core.update(true);
-});
+  async navigate(path: string) {
+    window.location.hash = path;
+  }
 
-const ifcLoader = components.get(OBC.IfcLoader);
-await ifcLoader.setup({
-  autoSetWasm: false,
-  wasm: { absolute: true, path: "https://unpkg.com/web-ifc@0.0.69/" },
-});
+  private async handleRouteChange() {
+    const hash = window.location.hash.slice(1) || '/';
+    const [path, queryString] = hash.split('?');
+    this.currentRoute = path;
 
-const highlighter = components.get(OBF.Highlighter);
-highlighter.setup({
-  world,
-  selectMaterialDefinition: {
-    color: new THREE.Color("#bcf124"),
-    renderedFaces: 1,
-    opacity: 1,
-    transparent: false,
-  },
-});
+    // Parse query parameters
+    const params = new URLSearchParams(queryString || '');
 
-// IDS Integration Setup
-let idsIntegration: IDSIntegration | undefined;
-try {
-  idsIntegration = new IDSIntegration(components);
-  await idsIntegration.setup(highlighter);
-  setGlobalIDSIntegration(idsIntegration);
-  console.log("IDS validation functionality initialized successfully");
-} catch (error) {
-  console.warn("IDS validation functionality not available:", error);
-  setGlobalIDSIntegration(undefined);
-  // Continue without IDS functionality - the app should still work for basic IFC viewing
+    // Hide all content first
+    if (this.landingPage) {
+      this.landingPage.style.display = 'none';
+    }
+    if (this.appContainer) {
+      this.appContainer.style.display = 'none';
+    }
+
+    // Handle routes
+    if (path === '/' || path === '/landing') {
+      await this.showLanding();
+    } else if (path === '/viewer') {
+      await this.showViewer(params);
+    } else {
+      // Default to landing page
+      await this.showLanding();
+    }
+  }
+
+  private async showLanding() {
+    if (!this.landingPage) {
+      const { landingPage, unsubscribe } = createLandingPage();
+      this.landingPage = landingPage;
+      this.landingPageUnsubscribe = unsubscribe;
+      document.body.appendChild(this.landingPage);
+    }
+    this.landingPage.style.display = 'block';
+    hideViewer();
+  }
+
+  private async showViewer(params: URLSearchParams) {
+    // Hide landing page
+    if (this.landingPage) {
+      this.landingPage.style.display = 'none';
+    }
+
+    // Initialize viewer if needed
+    await initializeViewer();
+    showViewer();
+
+    // Load model if specified
+    const modelId = params.get('model');
+    if (modelId) {
+      await loadFragmentFromAPI(modelId);
+    }
+
+    // Load validation results if specified
+    const resultsId = params.get('results');
+    if (resultsId) {
+      await loadValidationResults(resultsId);
+    }
+  }
+
+  async init() {
+    await this.handleRouteChange();
+  }
 }
 
-// Clipper Setup
-const clipper = components.get(OBC.Clipper);
-viewport.ondblclick = () => {
-  if (clipper.enabled) clipper.create(world);
-};
+// Initialize router and set up routes
+const router = new Router();
 
-window.addEventListener("keydown", (event) => {
-  if (event.code === "Delete" || event.code === "Backspace") {
-    clipper.delete(world);
+// Initialize the application
+async function initApp() {
+  console.log('Initializing BIM IDS Validator...');
+
+  // Set default route if no hash is present
+  if (!window.location.hash) {
+    window.location.hash = '/landing';
   }
-});
 
-// Length Measurement Setup
-const lengthMeasurer = components.get(OBF.LengthMeasurement);
-lengthMeasurer.world = world;
-lengthMeasurer.color = new THREE.Color("#6528d7");
+  // Initialize router
+  await router.init();
 
-lengthMeasurer.list.onItemAdded.add((line) => {
-  const center = new THREE.Vector3();
-  line.getCenter(center);
-  const radius = line.distance() / 3;
-  const sphere = new THREE.Sphere(center, radius);
-  world.camera.controls.fitToSphere(sphere, true);
-});
+  console.log('Application initialized');
+}
 
-viewport.addEventListener("dblclick", () => lengthMeasurer.create());
-
-window.addEventListener("keydown", (event) => {
-  if (event.code === "Delete" || event.code === "Backspace") {
-    lengthMeasurer.delete();
-  }
-});
-
-// Area Measurement Setup
-const areaMeasurer = components.get(OBF.AreaMeasurement);
-areaMeasurer.world = world;
-areaMeasurer.color = new THREE.Color("#6528d7");
-
-areaMeasurer.list.onItemAdded.add((area) => {
-  if (!area.boundingBox) return;
-  const sphere = new THREE.Sphere();
-  area.boundingBox.getBoundingSphere(sphere);
-  world.camera.controls.fitToSphere(sphere, true);
-});
-
-viewport.addEventListener("dblclick", () => {
-  areaMeasurer.create();
-});
-
-window.addEventListener("keydown", (event) => {
-  if (event.code === "Enter" || event.code === "NumpadEnter") {
-    areaMeasurer.endCreation();
-  }
-});
-
-// Define what happens when a fragments model has been loaded
-fragments.list.onItemSet.add(async ({ value: model }) => {
-  model.useCamera(world.camera.three);
-  model.getClippingPlanesEvent = () => {
-    return Array.from(world.renderer!.three.clippingPlanes) || [];
-  };
-  world.scene.three.add(model.object);
-  await fragments.core.update(true);
-});
-
-// Viewport Layouts
-const [viewportSettings] = BUI.Component.create(viewportSettingsTemplate, {
-  components,
-  world,
-});
-
-viewport.append(viewportSettings);
-
-const [viewportGrid] = BUI.Component.create(TEMPLATES.viewportGridTemplate, {
-  components,
-  world,
-});
-
-viewport.append(viewportGrid);
-
-// Content Grid Setup
-const viewportCardTemplate = () => BUI.html`
-  <div class="dashboard-card" style="padding: 0px;">
-    ${viewport}
-  </div>
-`;
-
-const { contentGrid, updateContentGrid } = TEMPLATES.createContentGrid(
-  components,
-  viewportCardTemplate,
-);
-
-// updateContentGrid can be used to update the grid state dynamically
-// Example: updateContentGrid({ viewportTemplate: newViewportTemplate })
-const setInitialLayout = () => {
-  if (window.location.hash) {
-    const hash = window.location.hash.slice(
-      1,
-    ) as TEMPLATES.ContentGridLayouts[number];
-    if (Object.keys(contentGrid.layouts).includes(hash)) {
-      contentGrid.layout = hash;
-    } else {
-      contentGrid.layout = "Viewer";
-      window.location.hash = "Viewer";
-    }
-  } else {
-    window.location.hash = "Viewer";
-    contentGrid.layout = "Viewer";
-  }
-};
-
-setInitialLayout();
-
-contentGrid.addEventListener("layoutchange", () => {
-  window.location.hash = contentGrid.layout as string;
-});
-
-const contentGridIcons: Record<TEMPLATES.ContentGridLayouts[number], string> = {
-  Viewer: appIcons.MODEL,
-};
-
-// App Grid Setup
-type AppLayouts = ["App"];
-
-type Sidebar = {
-  name: "sidebar";
-  state: TEMPLATES.GridSidebarState;
-};
-
-type ContentGrid = { name: "contentGrid"; state: TEMPLATES.ContentGridState };
-
-type AppGridElements = [Sidebar, ContentGrid];
-
-const app = document.getElementById("app") as BUI.Grid<
-  AppLayouts,
-  AppGridElements
->;
-
-app.elements = {
-  sidebar: {
-    template: TEMPLATES.gridSidebarTemplate,
-    initialState: {
-      grid: contentGrid,
-      compact: true,
-      layoutIcons: contentGridIcons,
-    },
-  },
-  contentGrid,
-};
-
-contentGrid.addEventListener("layoutchange", () =>
-  app.updateComponent.sidebar(),
-);
-
-app.layouts = {
-  App: {
-    template: `
-      "sidebar contentGrid" 1fr
-      /auto 1fr
-    `,
-  },
-};
-
-app.layout = "App";
+// Start the application
+initApp().catch(console.error);

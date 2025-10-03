@@ -3,6 +3,18 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
+# Install Python and build tools for canvas package
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev \
+    librsvg-dev \
+    g++ \
+    make
+
 # Copy package.json and package-lock.json to leverage Docker cache
 COPY package*.json ./
 
@@ -20,6 +32,9 @@ FROM nginx:stable-alpine AS production
 
 # Copy the built assets from the build stage
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80 for the Nginx server
 EXPOSE 80

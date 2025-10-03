@@ -52,15 +52,20 @@ export const validationResultsPanelTemplate: BUI.StatefullComponent<ValidationRe
     setupReactiveUpdates();
   }
 
-  // Sync with global IDS integration results
+  // Sync with global IDS integration results (only if it has results)
   const syncWithGlobalIntegration = () => {
     if (globalIDSIntegration) {
       const currentResults = globalIDSIntegration.getValidationResults();
-      stateManager.updateResults(currentResults);
+      // Only update if globalIDSIntegration has actual results
+      // This prevents overwriting results loaded from backend
+      if (currentResults.length > 0) {
+        console.log('Syncing with globalIDSIntegration results:', currentResults.length);
+        stateManager.updateResults(currentResults);
+      }
     }
   };
 
-  // Sync results on render
+  // Sync results on render (but only if they exist)
   syncWithGlobalIntegration();
 
   // Get current state from state manager
