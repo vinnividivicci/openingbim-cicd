@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: IDS Validation API Contract
+  description: Contract for POST /api/v1/ids/check endpoint
+  version: 1.0.0
+
+paths:
+  /api/v1/ids/check:
+    post:
+      summary: Run IDS validation on uploaded IFC file
+      description: |
+        Validates an IFC model file against an IDS specification. The IFC file is cached
+        for 1 hour to enable later visualization requests without re-upload.
+
+        Returns a job ID for asynchronous processing. Poll /api/v1/jobs/{jobId} for status.
+
+      operationId: checkIDS
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - ifcFile
+                - idsFile
+              properties:
+                ifcFile:
+                  type: string
+                  format: binary
+                  description: IFC model file to validate (max 1 GB)
+                  maxLength: 1073741824
+                idsFile:
+                  type: string
+                  format: binary
+                  description: IDS specification file (.ids or .xml, max 1 GB)
+                  maxLength: 1073741824
+            encoding:
+              ifcFile:
+                contentType: application/x-step, model/ifc
+              idsFile:
+                contentType: application/xml, text/xml
+
+      responses:
+        '202':
+          description: Validation job accepted and queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - jobId
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the validation job
+                    example: "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789"
+              examples:
+                success:
+                  value:
+                    jobId: "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789"
+
+        '400':
+          description: Bad request - missing files or invalid format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_ifc:
+                  value:
+                    error: "Missing required file"
+                    details: "IFC file is required for validation"
+                missing_ids:
+                  value:
+                    error: "Missing required file"
+                    details: "IDS file is required for validation"
+                invalid_format:
+                  value:
+                    error: "Invalid file format"
+                    details: "Only IFC files (.ifc) are allowed for ifcFile parameter"
+
+        '413':
+          description: Payload too large - file exceeds size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                file_too_large:
+                  value:
+                    error: "File exceeds size limit"
+                    details: "Maximum file size is 1 GB"
+
+        '500':
+          description: Internal server error - validation service failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_error:
+                  value:
+                    error: "Failed to start IDS validation"
+                    details: "Internal server error occurred"
+
+        '503':
+          description: Service unavailable - Python validation service not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                service_unavailable:
+                  value:
+                    error: "Validation service unavailable"
+                    details: "Python ifctester package not installed"
+
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error type (machine-readable category)
+          example: "File exceeds size limit"
+        details:
+          type: string
+          description: Brief human-readable explanation
+          example: "Maximum file size is 1 GB"
+

@@ -1,0 +1,144 @@
+openapi: 3.0.3
+info:
+  title: Fragments Visualization API Contract
+  description: Contract for POST /api/v1/fragments/visualize endpoint
+  version: 1.0.0
+
+paths:
+  /api/v1/fragments/visualize:
+    post:
+      summary: Convert IFC to fragments for 3D visualization
+      description: |
+        Converts an IFC file to optimized fragments format for web-based 3D visualization.
+        Optionally links to a validation job to associate visualization with validation results.
+
+        If validationJobId is provided, the endpoint retrieves the cached IFC file from that
+        validation run (within 1-hour cache window).
+
+        Returns a job ID for asynchronous processing. Poll /api/v1/jobs/{jobId} for status.
+
+      operationId: visualizeFragments
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - ifcFile
+              properties:
+                ifcFile:
+                  type: string
+                  format: binary
+                  description: IFC model file to convert (max 1 GB)
+                  maxLength: 1073741824
+                validationJobId:
+                  type: string
+                  format: uuid
+                  description: |
+                    Optional validation job ID to link visualization with validation results.
+                    If provided, the system will attempt to reuse the cached IFC file from
+                    the validation job (if still available within 1-hour window).
+                  example: "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789"
+            encoding:
+              ifcFile:
+                contentType: application/x-step, model/ifc
+
+      responses:
+        '202':
+          description: Fragments conversion job accepted and queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - jobId
+                  - fragmentsFileId
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the conversion job
+                    example: "f1e2d3c4-b5a6-4987-c0d1-e2f3a4b56789"
+                  fragmentsFileId:
+                    type: string
+                    description: |
+                      Identifier for the fragments file (available after job completes).
+                      Use GET /api/v1/fragments/{fragmentsFileId} to download.
+                    example: "frag-1234567890-abc123"
+                  validationJobId:
+                    type: string
+                    format: uuid
+                    description: Linked validation job ID (if provided in request)
+                    example: "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789"
+              examples:
+                success:
+                  value:
+                    jobId: "f1e2d3c4-b5a6-4987-c0d1-e2f3a4b56789"
+                    fragmentsFileId: "frag-1234567890-abc123"
+                success_with_validation:
+                  value:
+                    jobId: "f1e2d3c4-b5a6-4987-c0d1-e2f3a4b56789"
+                    fragmentsFileId: "frag-1234567890-abc123"
+                    validationJobId: "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f56789"
+
+        '400':
+          description: Bad request - missing file or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_ifc:
+                  value:
+                    error: "Missing required file"
+                    details: "IFC file is required for visualization"
+                invalid_validation_job:
+                  value:
+                    error: "Invalid validation job ID"
+                    details: "Validation job not found or IFC cache expired"
+
+        '413':
+          description: Payload too large - file exceeds size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                file_too_large:
+                  value:
+                    error: "File exceeds size limit"
+                    details: "Maximum file size is 1 GB"
+
+        '500':
+          description: Internal server error - conversion service failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_error:
+                  value:
+                    error: "Failed to start fragments conversion"
+                    details: "Internal server error occurred"
+                wasm_load_failed:
+                  value:
+                    error: "WASM module load failed"
+                    details: "web-ifc WASM module failed to initialize"
+
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error type (machine-readable category)
+          example: "File exceeds size limit"
+        details:
+          type: string
+          description: Brief human-readable explanation
+          example: "Maximum file size is 1 GB"
