@@ -43,7 +43,11 @@ export class IfcTesterService {
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
     this.scriptPath = path.join(__dirname, '../python/ids_validator.py');
     this.tempDir = path.join(__dirname, '../../../temp/validation');
-    this.pythonPath = process.env.PYTHON_PATH || '.venv/Scripts/python';
+    // Use platform-specific Python path
+    const defaultPythonPath = process.platform === 'win32'
+      ? '.venv/Scripts/python'
+      : '.venv/bin/python';
+    this.pythonPath = process.env.PYTHON_PATH || defaultPythonPath;
   }
 
   public static getInstance(): IfcTesterService {
