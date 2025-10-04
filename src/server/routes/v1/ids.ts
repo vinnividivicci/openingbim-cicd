@@ -11,11 +11,17 @@ router.post('/check', uploadForIDS, handleMulterError, async (req: Request, res:
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     if (!files || !files.ifcFile || !files.ifcFile[0]) {
-      return res.status(400).json({ error: 'No IFC file provided' });
+      return res.status(400).json({
+        error: 'Missing required file',
+        details: 'IFC file is required for validation'
+      });
     }
 
     if (!files.idsFile || !files.idsFile[0]) {
-      return res.status(400).json({ error: 'No IDS file provided' });
+      return res.status(400).json({
+        error: 'Missing required file',
+        details: 'IDS file is required for validation'
+      });
     }
 
     const ifcFile = files.ifcFile[0];
@@ -32,8 +38,8 @@ router.post('/check', uploadForIDS, handleMulterError, async (req: Request, res:
         await ifcTesterService.initialize();
       } catch (initError) {
         return res.status(503).json({
-          error: 'IDS validation service unavailable',
-          details: 'Python or required packages (ifctester, ifcopenshell) not installed',
+          error: 'Validation service unavailable',
+          details: 'Python ifctester package not installed'
         });
       }
     }

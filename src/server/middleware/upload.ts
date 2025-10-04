@@ -59,7 +59,10 @@ export const uploadForIDS = multer({
 export const handleMulterError = (error: any, req: Request, res: any, next: any) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 1GB.' });
+      return res.status(413).json({
+        error: 'File exceeds size limit',
+        details: 'Maximum file size is 1 GB'
+      });
     }
     return res.status(400).json({ error: `Upload error: ${error.message}` });
   } else if (error) {

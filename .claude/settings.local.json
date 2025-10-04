@@ -8,7 +8,12 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:docs.ifcopenshell.org)",
-      "WebFetch(domain:pypi.org)"
+      "WebFetch(domain:pypi.org)",
+      "Bash(npm run server:build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run server:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh:*)"
     ],
     "deny": [],
     "ask": []

@@ -102,9 +102,9 @@ A user uploads an IFC model file and an IDS specification file to validate compl
 
 ### Key Entities
 - **IFC File**: The building information model file uploaded by the user, containing 3D geometry and metadata about building elements
-- **IDS Specification**: The validation specification file that defines compliance requirements for the IFC model
+- **IDS Specification File**: The validation specification file that defines compliance requirements for the IFC model
 - **Validation Results**: The output showing which IDS requirements passed or failed, including details about non-compliant elements
-- **Optimized 3D Model**: A converted representation of the IFC file optimized for web-based 3D rendering and visualization
+- **Fragments**: A converted representation of the IFC file optimized for web-based 3D rendering and visualization
 
 ---
 

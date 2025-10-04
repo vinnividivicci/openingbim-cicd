@@ -1,10 +1,16 @@
 export type JobStatus = 'in-progress' | 'completed' | 'failed';
 
+export interface JobError {
+  type: string;
+  reason: string;
+  timestamp: string;
+}
+
 export interface Job {
   status: JobStatus;
   progress: number;
   result?: any;
-  error?: string;
+  error?: string | JobError;
 }
 
 class JobQueue {

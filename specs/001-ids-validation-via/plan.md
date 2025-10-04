@@ -100,7 +100,7 @@ Optimize IDS validation workflow by eliminating unnecessary IFC-to-fragments con
 - ✅ **COMPLIANT**: Error handling returns meaningful error type + reason
 
 ### Architecture Constraints
-- ⚠️ **MODIFICATION REQUIRED**: File upload limit increases from 500 MB to 1 GB (Multer config at `src/server/middleware/upload.ts`)
+- ✅ **COMPLIANT**: File upload limit is already 1 GB (verified in research.md); only HTTP status code needs correction from 400 to 413 (Multer config at `src/server/middleware/upload.ts`)
 - ✅ **COMPLIANT**: No path aliases (relative imports)
 - ✅ **COMPLIANT**: `import * as THREE` pattern
 - ✅ **COMPLIANT**: In-memory job queue (existing)
@@ -411,7 +411,7 @@ No constitutional violations detected. All changes align with existing architect
 - [x] Phase 0: Research complete (/plan command)
 - [x] Phase 1: Design complete (/plan command)
 - [x] Phase 2: Task planning complete (/plan command - describe approach only)
-- [x] Phase 3: Tasks generated (/tasks command) - 24 tasks created
+- [x] Phase 3: Tasks generated (/tasks command) - 25 tasks created (T001-T024 + T020a)
 - [ ] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
@@ -428,7 +428,7 @@ No constitutional violations detected. All changes align with existing architect
 - [x] contracts/fragments-visualize.yaml (Phase 1)
 - [x] quickstart.md (Phase 1)
 - [x] CLAUDE.md updated (Phase 1)
-- [x] tasks.md (Phase 3) - 24 implementation tasks
+- [x] tasks.md (Phase 3) - 25 implementation tasks (T001-T024 + T020a)
 
 ---
 *Based on Constitution v2.0.0 - See `.specify/memory/constitution.md`*

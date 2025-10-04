@@ -141,6 +141,42 @@ export class DirectFragmentsService {
       console.log(`Conversion completed for job ${jobId}`);
     } catch (error) {
       console.error(`Error in conversion for job ${jobId}:`, error);
+
+      // Categorize error types
+      let errorObject: { type: string; reason: string; timestamp: string }
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      if (errorMessage.includes('WASM') || errorMessage.includes('wasm')) {
+        errorObject = {
+          type: 'WASMLoadFailed',
+          reason: 'web-ifc WASM module failed to load',
+          timestamp: new Date().toISOString()
+        }
+      } else if (errorMessage.includes('geometry') || errorMessage.includes('parsing')) {
+        errorObject = {
+          type: 'InvalidGeometry',
+          reason: `IFC geometry parsing failed: ${errorMessage.substring(0, 50)}`,
+          timestamp: new Date().toISOString()
+        }
+      } else if (errorMessage.includes('not properly initialized')) {
+        errorObject = {
+          type: 'ServiceNotInitialized',
+          reason: 'Fragments service failed to initialize',
+          timestamp: new Date().toISOString()
+        }
+      } else {
+        errorObject = {
+          type: 'ConversionError',
+          reason: errorMessage.substring(0, 100),
+          timestamp: new Date().toISOString()
+        }
+      }
+
+      jobQueue.updateJob(jobId, {
+        status: 'failed',
+        error: errorObject
+      })
+
       throw error;
     }
   }

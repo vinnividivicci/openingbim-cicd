@@ -161,6 +161,14 @@ export class IfcTesterService {
       await fs.writeFile(tempIfcPath, ifcBuffer);
       await fs.writeFile(tempIdsPath, idsBuffer);
 
+      // Cache IFC file for potential later visualization (1-hour TTL)
+      const cachedIfcFileId = await fileStorageService.storeIfcForCache(
+        ifcBuffer,
+        fileName || `model-${jobId}.ifc`,
+        jobId
+      );
+      console.log(`IFC file cached for job ${jobId}: ${cachedIfcFileId}`);
+
       jobQueue.updateJob(jobId, { progress: 20 });
 
       // Run Python validation script
@@ -204,6 +212,37 @@ export class IfcTesterService {
       console.log(`IfcTester validation completed for job ${jobId}`);
     } catch (error) {
       console.error(`Error in validation for job ${jobId}:`, error);
+
+      // Parse structured error if available
+      let errorObject: { type: string; reason: string; timestamp: string }
+      if (error instanceof Error) {
+        try {
+          const parsed = JSON.parse(error.message)
+          errorObject = {
+            type: parsed.type || 'ValidationError',
+            reason: parsed.reason || error.message,
+            timestamp: new Date().toISOString()
+          }
+        } catch {
+          errorObject = {
+            type: 'ValidationError',
+            reason: error.message,
+            timestamp: new Date().toISOString()
+          }
+        }
+      } else {
+        errorObject = {
+          type: 'UnknownError',
+          reason: String(error),
+          timestamp: new Date().toISOString()
+        }
+      }
+
+      jobQueue.updateJob(jobId, {
+        status: 'failed',
+        error: errorObject
+      })
+
       throw error;
     } finally {
       // Clean up temporary files
@@ -256,13 +295,35 @@ export class IfcTesterService {
             reject(new Error(`Failed to parse validation output: ${output}`));
           }
         } else {
-          // Try to parse error from stderr first
-          try {
-            const errorResult = JSON.parse(errorOutput);
-            reject(new Error(errorResult.message || 'Validation failed'));
-          } catch {
-            reject(new Error(`Validation failed with code ${code}: ${errorOutput || output}`));
+          // Parse error and categorize it
+          const errorMessage = errorOutput || output
+          let categorizedError: { type: string; reason: string }
+
+          if (errorMessage.includes('Invalid IFC') || errorMessage.includes('IFC parsing failed')) {
+            categorizedError = {
+              type: 'InvalidIFCStructure',
+              reason: 'IFC parsing failed: missing or invalid IFC structure'
+            }
+          } else if (errorMessage.includes('Missing IFC header') || errorMessage.includes('HEADER')) {
+            categorizedError = {
+              type: 'InvalidIFCStructure',
+              reason: 'Missing IFC header'
+            }
+          } else if (errorMessage.includes('ifctester') || errorMessage.includes('ImportError')) {
+            categorizedError = {
+              type: 'PythonServiceUnavailable',
+              reason: 'ifctester package not available'
+            }
+          } else {
+            categorizedError = {
+              type: 'ValidationError',
+              reason: errorMessage.split('\n')[0].substring(0, 100)
+            }
           }
+
+          const error = new Error(JSON.stringify(categorizedError))
+          error.name = categorizedError.type
+          reject(error)
         }
       });
 

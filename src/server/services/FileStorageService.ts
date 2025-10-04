@@ -9,6 +9,7 @@ interface StoredFile {
   size: number;
   mimeType: string;
   createdAt: Date;
+  validationJobId?: string;
 }
 
 export class FileStorageService {
@@ -45,6 +46,7 @@ export class FileStorageService {
       await fs.mkdir(path.join(this.storageDir, 'fragments'), { recursive: true });
       await fs.mkdir(path.join(this.storageDir, 'uploads'), { recursive: true });
       await fs.mkdir(path.join(this.storageDir, 'validation-results'), { recursive: true });
+      await fs.mkdir(path.join(this.storageDir, 'ifc-cache'), { recursive: true });
       console.log('File storage initialized at:', this.storageDir);
     } catch (error) {
       console.error('Failed to initialize storage:', error);
@@ -86,7 +88,7 @@ export class FileStorageService {
   public async storeFile(
     buffer: Buffer,
     originalName: string,
-    type: 'fragments' | 'uploads' | 'validation-results',
+    type: 'fragments' | 'uploads' | 'validation-results' | 'ifc-cache',
     mimeType: string = 'application/octet-stream'
   ): Promise<string> {
     try {
@@ -180,6 +182,50 @@ export class FileStorageService {
    */
   public getFileMetadata(fileId: string): StoredFile | null {
     return this.fileRegistry.get(fileId) || null;
+  }
+
+  /**
+   * Store IFC file for caching (linked to validation job)
+   */
+  public async storeIfcForCache(
+    buffer: Buffer,
+    originalName: string,
+    validationJobId?: string
+  ): Promise<string> {
+    try {
+      const fileId = await this.storeFile(buffer, originalName, 'ifc-cache', 'application/x-step')
+
+      // Link to validation job if provided
+      if (validationJobId) {
+        const storedFile = this.fileRegistry.get(fileId)
+        if (storedFile) {
+          storedFile.validationJobId = validationJobId
+        }
+      }
+
+      return fileId
+    } catch (error) {
+      console.error('Error storing IFC for cache:', error)
+      throw new Error('Failed to cache IFC file')
+    }
+  }
+
+  /**
+   * Get cached IFC file by validation job ID
+   */
+  public async getCachedIfc(validationJobId: string): Promise<{ buffer: Buffer; metadata: StoredFile } | null> {
+    try {
+      // Find cached IFC file with matching validation job ID
+      for (const [fileId, file] of this.fileRegistry) {
+        if (file.validationJobId === validationJobId && file.path.includes('ifc-cache')) {
+          return await this.getFile(fileId)
+        }
+      }
+      return null
+    } catch (error) {
+      console.error(`Error retrieving cached IFC for validation job ${validationJobId}:`, error)
+      return null
+    }
   }
 
   /**

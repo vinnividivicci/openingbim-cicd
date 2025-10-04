@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { uploadIFC, handleMulterError } from '../../middleware/upload';
 import { directFragmentsService } from '../../services/DirectFragmentsService';
+import { fileStorageService } from '../../services/FileStorageService';
 
 const router = Router();
 
@@ -30,6 +31,60 @@ router.post('/', uploadIFC, handleMulterError, async (req: Request, res: Respons
     });
   }
 });
+
+// POST /api/v1/fragments/visualize - Convert IFC to fragments with optional validation linking
+router.post('/visualize', uploadIFC, handleMulterError, async (req: Request, res: Response) => {
+  try {
+    const { validationJobId } = req.body
+    let ifcBuffer: Buffer
+    let ifcFilename: string
+
+    if (req.file) {
+      // IFC file uploaded directly
+      ifcBuffer = req.file.buffer
+      ifcFilename = req.file.originalname
+    } else if (validationJobId) {
+      // Retrieve cached IFC from validation job
+      const cachedIfc = await fileStorageService.getCachedIfc(validationJobId)
+      if (!cachedIfc) {
+        return res.status(400).json({
+          error: 'Invalid validation job ID',
+          details: 'Validation job not found or IFC cache expired'
+        })
+      }
+      ifcBuffer = cachedIfc.buffer
+      ifcFilename = cachedIfc.metadata.originalName
+    } else {
+      return res.status(400).json({
+        error: 'Missing required file',
+        details: 'IFC file is required for visualization'
+      })
+    }
+
+    console.log(`Starting fragments conversion for: ${ifcFilename}`)
+
+    // Start fragments conversion
+    const jobId = await directFragmentsService.convertToFragments(ifcBuffer, ifcFilename)
+    const fragmentsFileId = `frag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    const response: any = {
+      jobId,
+      fragmentsFileId
+    }
+
+    if (validationJobId) {
+      response.validationJobId = validationJobId
+    }
+
+    return res.status(202).json(response)
+  } catch (error) {
+    console.error('Error initiating fragments visualization:', error)
+    res.status(500).json({
+      error: 'Failed to start fragments conversion',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+})
 
 // GET /api/v1/fragments/:fileId - Download fragments file
 router.get('/:fileId', async (req: Request, res: Response) => {
