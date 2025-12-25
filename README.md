@@ -1,184 +1,372 @@
-# BIM/IDS Validation Tool
-**🚧WIP - WORK IN PROGRESS🚧**
+# BIM/IDS Validation API
+**🚧 WIP - WORK IN PROGRESS 🚧**
 
-A fully client-side web application for validating Building Information Modeling (BIM) data from IFC files against Information Delivery Specification (IDS) requirements.
+A production-ready REST API for validating Building Information Modeling (BIM) data from IFC files against Information Delivery Specification (IDS) requirements. Built with Node.js, Express, Python, and Docker.
 
-## 🎯 What This App Does
+## 🐋 Quick Start with Docker
 
-- **Load and visualize IFC files** in an interactive 3D viewer
-- **Validate against IDS specifications** with real-time feedback
-- **Highlight validation results** directly in the 3D model
-- **Zero data upload** - all processing happens in your browser
-- **Instantaneous feedback** - no server round-trips required
+**Get started in seconds with a single command:**
 
-Built for BIM professionals, construction teams, and anyone needing IFC validation without compromising data privacy.
+```bash
+git clone https://github.com/vinnividivicci/openingbim-cicd.git
+cd openingbim-cicd
+docker compose up
+```
+
+This starts the complete stack:
+- **Backend API**: `http://localhost:3001/api/v1` - REST endpoints for IFC validation
+- **Web Interface**: `http://localhost` (port 80) - Testing and demonstration UI
+
+No Python installation, no Node.js setup required. Just Docker.
+
+## 🎯 What This API Does
+
+- **Validate IFC files** against IDS (Information Delivery Specification) requirements
+- **Convert IFC to Fragments** - Optimized geometry representation for web/mobile
+- **Python-powered validation** - Industry-standard ifctester and ifcopenshell libraries
+- **Async job processing** - Track long-running validations with job status endpoints
+- **Web interface included** - Test API endpoints through an interactive 3D viewer
+- **Dual architecture** - Backend API or optional client-side browser mode
+
+Built for developers integrating BIM validation into their applications, CI/CD pipelines, and automated workflows.
 
 ## ✨ Key Features
 
-- **Client-Side Processing**: Heavy computation via WebAssembly (WASM) - your files never leave your computer
-- **Real-Time Validation**: Instant feedback as you work with your models
-- **Interactive 3D Viewer**: Navigate, measure, and inspect your BIM models
-- **Open Source Foundation**: Built exclusively on open-source libraries
-- **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Production-Ready API**: Express.js REST endpoints with JSON responses, ready for integration
+- **Docker Deployment**: Single-command setup with docker-compose, includes Node.js + Python runtime
+- **Python Integration**: Leverages industry-standard ifctester (0.8.4) and ifcopenshell (0.8.4) for IDS validation
+- **Dual Architecture**: Backend API for scalable deployments + client-side browser mode for offline use
+- **Developer-Friendly**: RESTful design, clear error messages, job tracking for async operations
+- **Open Source Foundation**: Built exclusively on open-source libraries and standards
 
-## 🚀 Quick Start
+## 📡 API Reference
 
-### Prerequisites
-
-You'll need Node.js installed on your system. Choose the method that works best for your platform:
-
-#### Windows
-
-**Option 1: PowerShell (Recommended)**
-1. Download Node.js from [nodejs.org](https://nodejs.org/)
-2. Run the installer and follow the setup wizard
-3. Open PowerShell and verify installation:
-   ```powershell
-   node --version
-   npm --version
-   ```
-
-**Option 2: WSL (Windows Subsystem for Linux)**
-1. Install WSL if you haven't already: `wsl --install`
-2. Open your WSL terminal (Ubuntu/Debian)
-3. Follow the Linux instructions below
-
-#### macOS
-
-**Option 1: Official Installer**
-1. Download Node.js from [nodejs.org](https://nodejs.org/)
-2. Run the `.pkg` installer
-
-**Option 2: Homebrew (Recommended)**
-```bash
-# Install Homebrew if you don't have it
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install Node.js
-brew install node
+### Base URL
+```
+http://localhost:3001/api/v1
 ```
 
-**Option 3: Node Version Manager (nvm)**
-```bash
-# Install nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+### Endpoints
 
-# Restart terminal or run:
-source ~/.bashrc
+#### IFC to Fragments Conversion
+- **`POST /fragments`** - Convert IFC file to fragments format
+  - Body: `multipart/form-data` with `ifcFile` field
+  - Returns: `{ success: true, fileId: string, downloadUrl: string }`
 
-# Install latest Node.js
-nvm install node
-nvm use node
-```
+- **`GET /fragments/:fileId`** - Download converted fragments file
+  - Returns: Binary fragments file
 
-#### Linux
+#### IDS Validation
+- **`POST /ids/check`** - Validate IFC against IDS specification
+  - Body: `multipart/form-data` with `fragmentsFile` and `idsFile` fields
+  - Returns: `{ success: true, jobId: string, resultsUrl: string }`
 
-**Ubuntu/Debian:**
-```bash
-# Update package index
-sudo apt update
+- **`GET /ids/results/:fileId`** - Get validation results
+  - Returns: JSON with validation results and specifications
 
-# Install Node.js and npm
-sudo apt install nodejs npm
+#### Job Management
+- **`GET /jobs/:jobId`** - Check async job status
+  - Returns: `{ status: "pending" | "processing" | "completed" | "failed", result?: any }`
 
-# Verify installation
-node --version
-npm --version
-```
+### Example Usage
 
-**Using Node Version Manager (nvm) - All Linux Distros:**
-```bash
-# Install nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-
-# Restart terminal or run:
-source ~/.bashrc
-
-# Install latest Node.js
-nvm install node
-nvm use node
-```
-
-### Installation & Running
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/vinnividivicci/openingbim-cicd.git
-   cd bim-app
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser:**
-   - The app will be available at `http://localhost:5173`
-   - The development server supports hot reloading for instant updates
-
-### Build for Production
-
-To create a production build:
+**Complete validation workflow:**
 
 ```bash
-npm run build
+# Step 1: Convert IFC to fragments
+curl -X POST http://localhost:3001/api/v1/fragments \
+  -F "ifcFile=@model.ifc"
+# Response: {"success":true,"fileId":"abc123","downloadUrl":"/api/v1/fragments/abc123"}
+
+# Step 2: Run IDS validation
+curl -X POST http://localhost:3001/api/v1/ids/check \
+  -F "fragmentsFile=@fragments.frag" \
+  -F "idsFile=@specification.ids"
+# Response: {"success":true,"jobId":"job456","resultsUrl":"/api/v1/ids/results/results789"}
+
+# Step 3: Get validation results
+curl http://localhost:3001/api/v1/ids/results/results789
+# Response: { "specifications": [...], "results": [...], "summary": {...} }
 ```
 
-To preview the production build locally:
+## 🚀 Installation & Deployment
+
+### Option 1: Docker (Recommended for Production)
+
+**Prerequisites:**
+- Docker
+- Docker Compose
+
+**Installation:**
 
 ```bash
-npm run preview
+# Clone repository
+git clone https://github.com/vinnividivicci/openingbim-cicd.git
+cd openingbim-cicd
+
+# Start full stack (frontend + backend)
+docker compose up
+
+# Or start backend API only
+docker compose up backend
 ```
+
+**Access:**
+- Backend API: `http://localhost:3001/api/v1`
+- Web Interface: `http://localhost` (port 80)
+
+**Development mode with hot reloading:**
+```bash
+docker compose --profile dev up backend-dev
+```
+
+### Option 2: Local Development Setup
+
+**Prerequisites:**
+- Node.js 16+ ([nodejs.org](https://nodejs.org/))
+- Python 3.9-3.13 ([python.org](https://www.python.org/))
+
+**Installation:**
+
+```bash
+# Clone repository
+git clone https://github.com/vinnividivicci/openingbim-cicd.git
+cd openingbim-cicd
+
+# Install Node.js dependencies
+npm install
+
+# Create Python virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
+**Running the application:**
+
+```bash
+# Terminal 1: Start backend API server
+npm run server
+# Runs on http://localhost:3001
+
+# Terminal 2: Start frontend dev server (optional)
+npm run dev
+# Runs on http://localhost:5173
+```
+
+### Option 3: Client-Side Browser Mode
+
+For users who prefer a zero-server setup, the frontend can operate standalone:
+
+```bash
+npm run dev
+```
+
+The web interface uses WebAssembly (web-ifc) to process IFC files entirely in the browser. No backend required, no data leaves your computer. Note: This mode does not include Python-based IDS validation.
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: Vanilla TypeScript with Vite
-- **3D Rendering**: Three.js
-- **BIM Processing**: @thatopen/components ecosystem
-- **IFC Parsing**: web-ifc (WebAssembly)
-- **Build Tool**: Vite with TypeScript
+- **Backend**: Node.js + Express.js REST API (TypeScript)
+- **Validation**: Python (ifctester 0.8.4, ifcopenshell 0.8.4)
+- **Frontend**: Vanilla TypeScript + Vite (for testing UI)
+- **3D Rendering**: Three.js + @thatopen/components ecosystem
+- **IFC Processing**: web-ifc (WebAssembly) + @thatopen/fragments
+- **Deployment**: Docker + Docker Compose (multi-stage builds)
+- **Build Tools**: Vite (frontend), tsc (backend TypeScript compilation)
 
 ## 📁 Project Structure
 
 ```
-bim-app/
-├── src/                    # Main source code
-│   ├── main.ts            # Application entry point
-│   ├── globals.ts         # Global constants and configuration
-│   ├── bim-components/    # Custom BIM-specific components
-│   └── ui-templates/      # UI component templates
-├── gemini/                # Product specifications and examples
-├── index.html             # Main HTML entry point
-├── package.json           # Dependencies and scripts
-└── README.md             # This file
+openingbim-cicd/
+├── src/
+│   ├── main.ts                    # Frontend entry point
+│   ├── bim-components/            # Frontend BIM components
+│   │   ├── IDSIntegration/        # IDS validation component
+│   │   └── IDSUIStateManager/     # UI state management
+│   ├── server/                    # Backend API server
+│   │   ├── server.ts              # Express app (port 3001)
+│   │   ├── routes/v1/             # API v1 endpoints
+│   │   │   ├── fragments.ts       # IFC conversion routes
+│   │   │   ├── ids.ts             # IDS validation routes
+│   │   │   └── jobs.ts            # Job status routes
+│   │   ├── services/              # Business logic
+│   │   │   ├── DirectFragmentsService.ts   # IFC to fragments conversion
+│   │   │   ├── IfcTesterService.ts         # Python integration
+│   │   │   ├── JobQueue.ts                 # Async job tracking
+│   │   │   └── FileStorageService.ts       # Temp file management
+│   │   ├── middleware/            # Express middleware
+│   │   └── polyfills/             # Node.js compatibility
+├── requirements.txt               # Python dependencies
+├── docker-compose.yml             # Full stack orchestration
+├── Dockerfile.server              # Backend + Python container
+├── Dockerfile                     # Frontend nginx container
+├── package.json                   # Node.js dependencies
+└── README.md                      # This file
 ```
+
+## 🔧 Available Commands
+
+### Development
+```bash
+npm run dev          # Frontend dev server (http://localhost:5173)
+npm run server       # Backend API server (http://localhost:3001)
+npm run build        # Build frontend for production
+npm run preview      # Preview production build
+```
+
+### Backend
+```bash
+npm run server:build # Compile TypeScript backend to dist/
+```
+
+### Testing
+```bash
+npm test             # Run Vitest tests
+npm run test:ui      # Run tests with UI interface
+npm run test:coverage # Generate test coverage report
+```
+
+### Docker
+```bash
+docker compose up                          # Start full stack
+docker compose up backend                  # API only
+docker compose --profile dev up backend-dev # Dev mode with hot reload
+docker compose down                        # Stop all services
+```
+
+### Code Quality
+```bash
+npx eslint src/**/*.ts              # Lint TypeScript files
+npx prettier --write src/**/*.ts    # Format code
+npx tsc --noEmit                    # Type check
+```
+
+## 🚢 Production Deployment
+
+### Environment Variables
+
+Configure these in your deployment environment or `.env` file:
+
+```bash
+# Backend Server
+PORT=3001                           # API server port
+NODE_ENV=production                 # Environment mode
+PYTHON_PATH=/opt/venv/bin/python3   # Python executable path (Docker default)
+
+# Frontend (if serving separately)
+API_URL=http://backend:3001         # Backend API URL
+```
+
+### Docker Compose Configuration
+
+The `docker-compose.yml` includes:
+
+- **Persistent volumes** for validation data, storage, and fragments
+- **Health checks** built into backend container
+- **Network isolation** via bridge network
+- **Automatic restart** policy for backend service
+
+### Scaling Considerations
+
+- **Job Queue**: Currently in-memory (Map-based). State is lost on restart. Consider Redis for production.
+- **File Storage**: Temporary files auto-delete after 1 hour. Configure persistent volume for longer retention.
+- **Upload Limits**: Maximum file size is 500MB (configurable in `src/server/middleware/upload.ts`)
+
+## 🆘 Troubleshooting
+
+### Docker Issues
+
+**Port already in use:**
+```bash
+# Check what's using the port
+lsof -i :3001  # or :80
+# Change port in docker-compose.yml or stop conflicting service
+```
+
+**Volume permission errors:**
+```bash
+# Fix volume permissions (Linux)
+sudo chown -R $USER:$USER ./temp
+```
+
+### Python Environment Issues
+
+**Wrong Python version:**
+```bash
+python --version  # Must be 3.9-3.13
+# Use pyenv or conda to install correct version
+```
+
+**ifcopenshell installation fails:**
+- Ensure you're using a supported Python version (3.9-3.13)
+- Try upgrading pip: `pip install --upgrade pip`
+- On Windows: May require Visual C++ Build Tools
+
+### Backend API Issues
+
+**Connection refused:**
+- Verify server is running: `curl http://localhost:3001`
+- Check server logs: `docker compose logs backend`
+- Ensure CORS is enabled (configured in `src/server/server.ts`)
+
+**CORS errors when running frontend separately:**
+- Backend includes CORS middleware for all origins (development)
+- For production, configure allowed origins in `src/server/server.ts`
+
+### Build Issues
+
+**TypeScript errors:**
+```bash
+npx tsc --noEmit  # Check for type errors
+```
+
+**WebAssembly not loading:**
+- In Docker: Ensure `web-ifc` WASM files are copied correctly
+- In local dev: Vite auto-handles WASM, check browser console
 
 ## 🤝 Contributing
 
-This is an open-source project built on open-source foundations. Contributions are welcome!
+This project welcomes contributions from the BIM and open-source communities.
+
+### For API Integration
+
+- **RESTful Design**: Endpoints follow REST conventions (POST for creation, GET for retrieval)
+- **JSON Responses**: All responses return JSON with consistent structure
+- **Error Handling**: Errors include status codes and descriptive messages
+- **Async Operations**: Long-running tasks return job IDs for status tracking
+
+### Adding New Endpoints
+
+1. Create route handler in `src/server/routes/v1/`
+2. Implement business logic in `src/server/services/`
+3. Add route to `src/server/routes/v1/index.ts`
+4. Update API documentation in this README
+
+### Testing Strategy
+
+- Framework: Vitest with jsdom environment
+- Test files: `*.test.ts` alongside source files
+- Run tests: `npm test`
+- Coverage: `npm run test:coverage`
 
 ## 📄 License
 
 GNU GPL v3: https://www.gnu.org/licenses/gpl-3.0.html
 
-## 🆘 Troubleshooting
+## 📚 Additional Resources
 
-**Common Issues:**
-
-- **Port already in use**: If port 5173 is busy, Vite will automatically use the next available port
-- **Node.js version**: This project requires Node.js 16 or higher
-- **WSL users**: Make sure you're running commands inside your WSL environment, not Windows PowerShell
-
-**Need Help?**
-- Check the browser console for error messages
-- Ensure all dependencies installed correctly with `npm install`
-- Try clearing node_modules and reinstalling: `rm -rf node_modules && npm install`
+- **ifctester**: [GitHub - buildingSMART/ifctester](https://github.com/buildingSMART/ifctester)
+- **ifcopenshell**: [ifcopenshell.org](https://ifcopenshell.org/)
+- **@thatopen/components**: [docs.thatopen.com](https://docs.thatopen.com/)
+- **IDS Specification**: [buildingSMART IDS](https://technical.buildingsmart.org/projects/information-delivery-specification-ids/)
 
 ---
 
-**Built with ❤️ for the BIM community**
+**REST API for BIM validation | Production-ready | Docker-first | Python-powered**
