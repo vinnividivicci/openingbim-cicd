@@ -4,11 +4,12 @@
 # Use Node.js image with Python pre-installed
 FROM node:20-bookworm AS development
 
-# Install Python and pip
+# Install Python, pip, and patch utility
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    patch \
     && rm -rf /var/lib/apt/lists/*
 
 # Create Python virtual environment
@@ -21,6 +22,11 @@ WORKDIR /app
 # Copy Python requirements and install them
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Apply ifctester reporter.py cardinality fix (PR #7516)
+COPY patches/ifctester-reporter-cardinality-fix.patch /tmp/
+RUN patch -p1 -d /opt/venv/lib/python3.11/site-packages < /tmp/ifctester-reporter-cardinality-fix.patch && \
+    rm /tmp/ifctester-reporter-cardinality-fix.patch
 
 # Copy package files
 COPY package*.json ./
@@ -49,11 +55,12 @@ CMD ["npm", "run", "server"]
 # Production stage
 FROM node:20-bookworm-slim AS production
 
-# Install Python and required system libraries
+# Install Python, required system libraries, and patch utility
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    patch \
     && rm -rf /var/lib/apt/lists/*
 
 # Create Python virtual environment
@@ -66,6 +73,11 @@ WORKDIR /app
 # Copy Python requirements and install them
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Apply ifctester reporter.py cardinality fix (PR #7516)
+COPY patches/ifctester-reporter-cardinality-fix.patch /tmp/
+RUN patch -p1 -d /opt/venv/lib/python3.11/site-packages < /tmp/ifctester-reporter-cardinality-fix.patch && \
+    rm /tmp/ifctester-reporter-cardinality-fix.patch
 
 # Copy package files
 COPY package*.json ./
