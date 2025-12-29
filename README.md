@@ -165,7 +165,7 @@ npm run dev
 
 Deploy the backend API to Railway with a single click:
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new?template=https://github.com/vinnividivicci/openingbim-cicd)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/J-LDX_?referralCode=TAsjoH&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 This will:
 - Deploy backend API only (not frontend) to Railway
