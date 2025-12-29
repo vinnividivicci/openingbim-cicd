@@ -161,7 +161,30 @@ npm run dev
 # Runs on http://localhost:5173
 ```
 
-### Option 3: Client-Side Browser Mode
+### Option 3: Cloud Deployment with Railway
+
+Deploy the backend API to Railway with a single click:
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new?template=https://github.com/vinnividivicci/openingbim-cicd)
+
+This will:
+- Deploy backend API only (not frontend) to Railway
+- Configure Node.js + Python 3 environment with all dependencies
+- Set up environment variables (PORT, NODE_ENV, PYTHON_PATH)
+- Enable health checks for container monitoring
+- Apply ifctester patch for IDS validation
+
+**After deployment:**
+- Backend API accessible at your Railway domain (e.g., `https://your-app.railway.app/api/v1`)
+- Access API endpoints directly or configure a frontend to point to your Railway backend
+- Validation data persists in Railway's volume storage
+
+**Limitations:**
+- Railway has a 500MB file upload limit (API supports up to 1GB locally)
+- In-memory job queue (state lost on container restart)
+- Temporary files auto-delete after 1 hour
+
+### Option 4: Client-Side Browser Mode
 
 For users who prefer a zero-server setup, the frontend can operate standalone:
 

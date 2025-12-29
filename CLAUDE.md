@@ -45,6 +45,27 @@ The application operates in two modes:
    - Python integration for IDS validation (ifctester)
    - Docker containerization support
 
+### Railway Deployment
+
+The backend API can be deployed to Railway using the pre-configured `railway.json`:
+
+**Deploy Button Integration:**
+- One-click deployment via "Deploy on Railway" button in README
+- Auto-configures Docker build, environment variables, and health checks
+- Backend API only (no frontend) to minimize costs
+
+**Configuration:**
+- `railway.json` at repository root defines build and deployment settings
+- Uses Dockerfile.server multi-stage production build
+- Health checks via GET /health endpoint
+- Environment variables set to production defaults (overridable in Railway dashboard)
+
+**Considerations:**
+- File upload limit: 500MB (vs 1GB in local setup)
+- Job queue: In-memory only - state lost on restart
+- Persistent volumes: Validation data, storage, and fragments directories persist
+- Auto-cleanup: Temp files deleted after 1 hour
+
 ### Core Component System
 
 The application uses `@thatopen/components` ecosystem with a component-based architecture:

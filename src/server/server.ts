@@ -15,6 +15,10 @@ app.get('/', (req, res) => {
   res.send('BIM-IDS Validator Backend is running!');
 });
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
