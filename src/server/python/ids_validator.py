@@ -10,6 +10,9 @@ import os
 import traceback
 from pathlib import Path
 
+# Immediate startup log to verify script is running
+print(json.dumps({"status": "script_started", "timestamp": str(sys.argv)}), file=sys.stderr, flush=True)
+
 try:
     import ifcopenshell
     import ifctester

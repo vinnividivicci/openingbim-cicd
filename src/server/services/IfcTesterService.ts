@@ -230,6 +230,7 @@ export class IfcTesterService {
   private async executePythonValidation(ifcPath: string, idsPath: string, jobId: string): Promise<IfcTesterValidationResult> {
     return new Promise((resolve, reject) => {
       const pythonProcess = spawn(this.pythonPath, [
+        '-u',  // Unbuffered output to prevent buffering issues in Docker
         this.scriptPath,
         ifcPath,
         idsPath,
@@ -240,11 +241,15 @@ export class IfcTesterService {
       let errorOutput = '';
 
       pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        output += chunk;
+        console.log(`[Python stdout jobId=${jobId}]:`, chunk);
       });
 
       pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+        const chunk = data.toString();
+        errorOutput += chunk;
+        console.error(`[Python stderr jobId=${jobId}]:`, chunk);
       });
 
       pythonProcess.on('close', (code) => {
@@ -261,7 +266,11 @@ export class IfcTesterService {
             const errorResult = JSON.parse(errorOutput);
             reject(new Error(errorResult.message || 'Validation failed'));
           } catch {
-            reject(new Error(`Validation failed with code ${code}: ${errorOutput || output}`));
+            reject(new Error(
+              `Validation failed with code ${code}:\n` +
+              `stderr="${errorOutput.substring(0, 500)}"\n` +
+              `stdout="${output.substring(0, 500)}"`
+            ));
           }
         }
       });
