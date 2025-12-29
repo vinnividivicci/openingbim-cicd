@@ -89,6 +89,31 @@ curl http://localhost:3001/api/v1/ids/results/results789
 # Response: { "specifications": [...], "results": [...], "summary": {...} }
 ```
 
+## 📖 API Documentation
+
+Interactive API documentation is available via Swagger UI:
+
+- **Local Development**: [http://localhost:3001/api-docs](http://localhost:3001/api-docs)
+- **Production (Railway)**: `https://your-app.railway.app/api-docs`
+
+The API follows the **OpenAPI 3.0.3** specification. The complete specification file is available at [`openapi.yaml`](./openapi.yaml) in the repository root.
+
+### Features
+
+- **Interactive Testing**: Try out API endpoints directly in the browser
+- **Complete Schema Documentation**: Detailed request/response schemas for all endpoints
+- **Example Requests**: Pre-filled examples for quick testing
+- **Export Options**: Generate client SDKs using the OpenAPI spec
+
+### Using the OpenAPI Spec
+
+The `openapi.yaml` file can be used to:
+
+- **Generate client libraries** in various languages using [OpenAPI Generator](https://openapi-generator.tech/)
+- **Import into Postman** for API testing and collection management
+- **Validate API contracts** in CI/CD pipelines
+- **Auto-generate documentation** for integration guides
+
 ## 🚀 Installation & Deployment
 
 ### Option 1: Docker (Recommended for Production)

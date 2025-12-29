@@ -1,0 +1,685 @@
+openapi: 3.0.3
+info:
+  title: BIM-IDS Validator Backend API
+  version: 1.0.0
+  description: |
+    REST API for IFC (Industry Foundation Classes) to Fragments conversion and IDS (Information Delivery Specification) validation.
+
+    ## Features
+    - **IFC to Fragments Conversion**: Convert large IFC files to optimized fragment format
+    - **IDS Validation**: Validate IFC models against IDS specifications using IfcOpenShell
+    - **Async Job Processing**: All heavy operations use async job queue pattern
+    - **File Management**: Automatic cleanup of temporary files after 1 hour
+
+    ## Architecture
+    - Backend: Express.js with TypeScript
+    - IFC Processing: @thatopen/fragments (headless)
+    - IDS Validation: Python subprocess with ifctester + ifcopenshell
+    - Job Queue: In-memory (state lost on restart)
+
+    ## Limitations
+    - Maximum file size: 1GB (500MB on Railway deployment)
+    - Job queue is non-persistent
+    - No authentication implemented
+  contact:
+    name: API Support
+  license:
+    name: GPL-3.0
+    url: https://www.gnu.org/licenses/gpl-3.0.txt
+
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://openingbim-cicd-production.up.railway.app
+    description: Production server (Railway)
+
+tags:
+  - name: General
+    description: General endpoints for health check and status
+  - name: Fragments
+    description: IFC to Fragments conversion operations
+  - name: IDS Validation
+    description: IDS validation operations
+  - name: Jobs
+    description: Async job status tracking
+
+paths:
+  /:
+    get:
+      tags:
+        - General
+      summary: Root endpoint
+      description: Simple endpoint to verify the server is running
+      operationId: getRoot
+      responses:
+        '200':
+          description: Server is running
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: BIM-IDS Validator Backend is running!
+
+  /health:
+    get:
+      tags:
+        - General
+      summary: Health check
+      description: Returns server health status and uptime
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                uptime: 12345.67
+
+  /api/v1/fragments:
+    post:
+      tags:
+        - Fragments
+      summary: Convert IFC file to Fragments
+      description: |
+        Uploads an IFC file and initiates an asynchronous conversion to the Fragments format.
+        The conversion happens in the background using a job queue.
+
+        **Process:**
+        1. Upload IFC file (max 1GB)
+        2. Receive jobId (202 Accepted)
+        3. Poll GET /api/v1/jobs/{jobId} for status
+        4. When complete, download fragments from GET /api/v1/fragments/{fileId}
+
+        **Note:** Files are automatically deleted after 1 hour.
+      operationId: convertToFragments
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                ifcFile:
+                  type: string
+                  format: binary
+                  description: IFC file to convert (max 1GB, .ifc extension only)
+              required:
+                - ifcFile
+            encoding:
+              ifcFile:
+                contentType: application/x-step
+      responses:
+        '202':
+          description: Conversion job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+              example:
+                jobId: job-1703001234567-k3m9x7q2r
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/fragments/{fileId}:
+    get:
+      tags:
+        - Fragments
+      summary: Download fragments file
+      description: |
+        Downloads the converted fragments file by fileId.
+        The fileId is returned in the job result after successful conversion.
+
+        **Content-Type:** application/octet-stream (binary file)
+      operationId: getFragmentsFile
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: Unique identifier for the fragments file
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9-]+$'
+          example: 1703001234567-abc123def
+      responses:
+        '200':
+          description: Fragments file download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              description: Attachment header with filename
+              schema:
+                type: string
+                example: attachment; filename="1703001234567-abc123def.frag"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/ids/check:
+    post:
+      tags:
+        - IDS Validation
+      summary: Run IDS validation
+      description: |
+        Uploads an IFC file and IDS specification file, then initiates asynchronous validation.
+        Validation is performed using Python's ifctester library.
+
+        **Process:**
+        1. Upload IFC file (.ifc) and IDS file (.ids or .xml)
+        2. Receive jobId (202 Accepted)
+        3. Poll GET /api/v1/jobs/{jobId} for status
+        4. When complete, download results from GET /api/v1/ids/results/{fileId}
+
+        **Requirements:**
+        - Python 3.9-3.13 installed
+        - ifctester==0.8.3 and ifcopenshell==0.8.3.post2 packages
+
+        **Note:** Validation data persists but temp files are deleted after 1 hour.
+      operationId: validateIds
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                ifcFile:
+                  type: string
+                  format: binary
+                  description: IFC file to validate (max 1GB, .ifc extension only)
+                idsFile:
+                  type: string
+                  format: binary
+                  description: IDS specification file (max 1GB, .ids or .xml extension)
+              required:
+                - ifcFile
+                - idsFile
+            encoding:
+              ifcFile:
+                contentType: application/x-step
+              idsFile:
+                contentType: application/xml
+      responses:
+        '202':
+          description: Validation job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+              example:
+                jobId: job-1703001234567-x9k2m7p4q
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          description: IDS validation service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: IDS validation service unavailable
+                details: Python or required packages (ifctester, ifcopenshell) not installed
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/ids/results/{fileId}:
+    get:
+      tags:
+        - IDS Validation
+      summary: Download validation results
+      description: |
+        Downloads the validation results as a JSON file.
+        The fileId is returned in the job result after successful validation.
+
+        **Result Structure:**
+        - `validationResults`: Specifications, requirements, and summary
+        - `metadata`: File info, timestamp, validator name
+      operationId: getValidationResults
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: Unique identifier for the validation results
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9-]+$'
+          example: 1703001234567-xyz789abc
+      responses:
+        '200':
+          description: Validation results JSON file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResultsFile'
+          headers:
+            Content-Disposition:
+              description: Attachment header with filename
+              schema:
+                type: string
+                example: attachment; filename="validation-results-1703001234567-xyz789abc.json"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/jobs/{jobId}:
+    get:
+      tags:
+        - Jobs
+      summary: Get job status
+      description: |
+        Polls the status of an asynchronous job.
+        Use this endpoint to check progress after initiating a conversion or validation.
+
+        **Response varies by job status:**
+        - `in-progress`: Returns status and progress (0-100)
+        - `completed`: Returns status and result object
+        - `failed`: Returns status and error message
+
+        **Note:** Jobs are stored in-memory and lost on server restart.
+      operationId: getJobStatus
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Job identifier returned from POST endpoints
+          schema:
+            type: string
+            pattern: '^job-[0-9]+-[a-z0-9]+$'
+          example: job-1703001234567-k3m9x7q2r
+      responses:
+        '200':
+          description: Job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/JobInProgress'
+                  - $ref: '#/components/schemas/JobCompleted'
+                  - $ref: '#/components/schemas/JobFailed'
+              examples:
+                inProgress:
+                  summary: Job in progress
+                  value:
+                    status: in-progress
+                    progress: 65
+                completedFragments:
+                  summary: Fragments conversion completed
+                  value:
+                    status: completed
+                    result:
+                      fragmentsUrl: /api/v1/fragments/1703001234567-abc123def
+                      fileId: 1703001234567-abc123def
+                      fileName: sample-model.frag
+                      fileSize: 2458624
+                completedValidation:
+                  summary: IDS validation completed
+                  value:
+                    status: completed
+                    result:
+                      fileId: 1703001234567-xyz789abc
+                      validationResults:
+                        specifications:
+                          - name: Sample IDS
+                            applicability: IfcWall
+                            requirements:
+                              - description: LoadBearing attribute must be TRUE
+                                passed: 45
+                                failed: 3
+                                failed_entities:
+                                  - "#123"
+                                  - "#456"
+                                  - "#789"
+                        summary:
+                          total_specifications: 1
+                          total_requirements: 1
+                          passed: 45
+                          failed: 3
+                      resultsFileUrl: /api/v1/ids/results/1703001234567-xyz789abc
+                failed:
+                  summary: Job failed
+                  value:
+                    status: failed
+                    error: Failed to parse IFC file - invalid format
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Health status of the server
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 12345.67
+      required:
+        - status
+        - uptime
+
+    JobResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          pattern: '^job-[0-9]+-[a-z0-9]+$'
+          description: Unique job identifier for polling status
+          example: job-1703001234567-k3m9x7q2r
+      required:
+        - jobId
+
+    JobInProgress:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [in-progress]
+          description: Job is currently processing
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Progress percentage (0-100)
+          example: 65
+      required:
+        - status
+        - progress
+
+    JobCompleted:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [completed]
+          description: Job completed successfully
+        result:
+          oneOf:
+            - $ref: '#/components/schemas/FragmentsResult'
+            - $ref: '#/components/schemas/ValidationJobResult'
+          description: Result object (structure depends on job type)
+      required:
+        - status
+        - result
+
+    JobFailed:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [failed]
+          description: Job failed during processing
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: Failed to parse IFC file - invalid format
+      required:
+        - status
+        - error
+
+    FragmentsResult:
+      type: object
+      description: Result of successful fragments conversion
+      properties:
+        fragmentsUrl:
+          type: string
+          format: uri-reference
+          description: URL to download the fragments file
+          example: /api/v1/fragments/1703001234567-abc123def
+        fileId:
+          type: string
+          description: Unique file identifier
+          example: 1703001234567-abc123def
+        fileName:
+          type: string
+          description: Name of the fragments file
+          example: sample-model.frag
+        fileSize:
+          type: integer
+          description: Size of the fragments file in bytes
+          example: 2458624
+      required:
+        - fragmentsUrl
+        - fileId
+        - fileName
+        - fileSize
+
+    ValidationJobResult:
+      type: object
+      description: Result of successful IDS validation
+      properties:
+        fileId:
+          type: string
+          description: Unique identifier for validation results
+          example: 1703001234567-xyz789abc
+        validationResults:
+          $ref: '#/components/schemas/ValidationResults'
+        resultsFileUrl:
+          type: string
+          format: uri-reference
+          description: URL to download the full validation results JSON
+          example: /api/v1/ids/results/1703001234567-xyz789abc
+      required:
+        - fileId
+        - validationResults
+        - resultsFileUrl
+
+    ValidationResults:
+      type: object
+      description: IDS validation results from ifctester
+      properties:
+        specifications:
+          type: array
+          description: Array of IDS specifications that were tested
+          items:
+            $ref: '#/components/schemas/ValidationSpecification'
+        summary:
+          $ref: '#/components/schemas/ValidationSummary'
+        error:
+          type: string
+          description: Error message if validation failed
+        message:
+          type: string
+          description: Additional message or warning
+
+    ValidationSpecification:
+      type: object
+      description: Individual IDS specification result
+      properties:
+        name:
+          type: string
+          description: Name of the specification
+          example: Structural Requirements
+        applicability:
+          type: string
+          description: IFC entities this specification applies to
+          example: IfcWall
+        requirements:
+          type: array
+          description: Requirements within this specification
+          items:
+            $ref: '#/components/schemas/ValidationRequirement'
+      required:
+        - name
+        - applicability
+        - requirements
+
+    ValidationRequirement:
+      type: object
+      description: Individual requirement within a specification
+      properties:
+        description:
+          type: string
+          description: Description of the requirement
+          example: LoadBearing attribute must be TRUE
+        passed:
+          type: integer
+          minimum: 0
+          description: Number of entities that passed this requirement
+          example: 45
+        failed:
+          type: integer
+          minimum: 0
+          description: Number of entities that failed this requirement
+          example: 3
+        failed_entities:
+          type: array
+          description: Optional list of IFC entity IDs that failed (e.g., "#123")
+          items:
+            type: string
+          example: ["#123", "#456", "#789"]
+      required:
+        - description
+        - passed
+        - failed
+
+    ValidationSummary:
+      type: object
+      description: Summary statistics for validation results
+      properties:
+        total_specifications:
+          type: integer
+          minimum: 0
+          description: Total number of specifications tested
+          example: 5
+        total_requirements:
+          type: integer
+          minimum: 0
+          description: Total number of requirements tested
+          example: 15
+        passed:
+          type: integer
+          minimum: 0
+          description: Total number of passed requirements
+          example: 142
+        failed:
+          type: integer
+          minimum: 0
+          description: Total number of failed requirements
+          example: 8
+      required:
+        - total_specifications
+        - total_requirements
+        - passed
+        - failed
+
+    ValidationResultsFile:
+      type: object
+      description: Complete validation results file structure
+      properties:
+        validationResults:
+          $ref: '#/components/schemas/ValidationResults'
+        metadata:
+          type: object
+          description: Metadata about the validation
+          properties:
+            fileName:
+              type: string
+              description: Original IFC filename
+              example: sample-model.ifc
+            timestamp:
+              type: string
+              format: date-time
+              description: ISO 8601 timestamp of validation
+              example: "2024-01-15T10:30:00.000Z"
+            jobId:
+              type: string
+              description: Job ID that created this result
+              example: job-1703001234567-x9k2m7p4q
+            validator:
+              type: string
+              enum: [IfcTester]
+              description: Validator used for validation
+              example: IfcTester
+          required:
+            - fileName
+            - timestamp
+            - jobId
+            - validator
+      required:
+        - validationResults
+        - metadata
+
+    ErrorResponse:
+      type: object
+      description: Standard error response format
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: File not found
+        details:
+          type: string
+          description: Technical error details (optional)
+          example: No file exists with the specified fileId
+      required:
+        - error
+
+  responses:
+    BadRequest:
+      description: Bad request (missing or invalid input)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingFile:
+              summary: Missing file
+              value:
+                error: No IFC file provided
+            invalidFile:
+              summary: Invalid file type
+              value:
+                error: Only IFC files are allowed
+            fileTooLarge:
+              summary: File too large
+              value:
+                error: File too large. Maximum size is 1GB.
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            jobNotFound:
+              summary: Job not found
+              value:
+                error: Job not found
+            fileNotFound:
+              summary: File not found
+              value:
+                error: Fragments file not found
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            conversionFailed:
+              summary: Conversion failed
+              value:
+                error: Failed to start IFC conversion
+                details: WASM initialization error
+            validationFailed:
+              summary: Validation failed
+              value:
+                error: Failed to start IDS validation
+                details: Python subprocess error

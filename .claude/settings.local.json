@@ -10,7 +10,10 @@
       "WebFetch(domain:docs.ifcopenshell.org)",
       "WebFetch(domain:pypi.org)",
       "Bash(find:*)",
-      "WebFetch(domain:docs.railway.com)"
+      "WebFetch(domain:docs.railway.com)",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_close"
     ],
     "deny": [],
     "ask": []

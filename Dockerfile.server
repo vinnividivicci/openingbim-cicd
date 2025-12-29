@@ -35,6 +35,9 @@ COPY tsconfig*.json ./
 # Install Node.js dependencies
 RUN npm ci
 
+# Copy OpenAPI specification
+COPY openapi.yaml ./
+
 # Copy source code
 COPY src ./src
 
@@ -85,6 +88,9 @@ COPY tsconfig*.json ./
 
 # Install production dependencies only
 RUN npm ci --only=production
+
+# Copy OpenAPI specification
+COPY openapi.yaml ./
 
 # Copy application source from development stage
 COPY --from=development /app/src ./src
